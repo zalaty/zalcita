@@ -81,6 +81,25 @@ export interface Appointment {
   created_at: string;
 }
 
+export interface WorkingHours {
+  id: string;
+  business_id: string;
+  member_id: string | null; // null = horario general del negocio
+  day_of_week: number; // 0=domingo..6=sábado
+  start_time: string; // tipo `time` de Postgres, ej. '09:00'
+  end_time: string;
+}
+
+export interface ScheduleException {
+  id: string;
+  business_id: string;
+  member_id: string | null; // null = aplica al horario general
+  date: string; // 'YYYY-MM-DD'
+  is_closed: boolean;
+  start_time: string | null; // null junto a end_time null = cierra todo el día
+  end_time: string | null;
+}
+
 export interface CancellationPolicy {
   business_id: string;
   min_hours_notice: number;
@@ -90,29 +109,75 @@ export interface CancellationPolicy {
   penalty_amount: number | null;
 }
 
+// postgrest-js exige que `Row` cumpla `Record<string, unknown>`. Una
+// `interface` con propiedades nombradas (como `Business`) no lo cumple aun
+// siendo estructuralmente idéntica, por una particularidad de TypeScript:
+// solo los `type` literales reciben una "índice signature" implícita, las
+// `interface` no. Este mapped-type identidad convierte la interfaz en un
+// alias de tipo literal sin cambiar sus propiedades. Sin este truco,
+// cualquier `.select()` del SDK tipaba como `never` en vez de con las
+// columnas reales.
+type Row<T> = { [K in keyof T]: T[K] };
+
 // Forma mínima que espera el SDK de Supabase (Database['public']['Tables'][...]).
-// Se amplía según haga falta (working_hours, payments, notifications_log...).
+// `Relationships: []` en cada tabla y `Views`/`Functions` vacíos porque el
+// SDK también exige esa forma exacta. Aquí no modelamos claves foráneas (no
+// hacen falta joins tipados todavía); cuando se generen los tipos reales
+// con `supabase gen types` esto se sustituye.
+// Se amplía según haga falta (payments, notifications_log...).
 export interface Database {
   public: {
     Tables: {
-      businesses: { Row: Business; Insert: Partial<Business>; Update: Partial<Business> };
+      businesses: {
+        Row: Row<Business>;
+        Insert: Partial<Business>;
+        Update: Partial<Business>;
+        Relationships: [];
+      };
       business_members: {
-        Row: BusinessMember;
+        Row: Row<BusinessMember>;
         Insert: Partial<BusinessMember>;
         Update: Partial<BusinessMember>;
+        Relationships: [];
       };
-      services: { Row: Service; Insert: Partial<Service>; Update: Partial<Service> };
-      clients: { Row: Client; Insert: Partial<Client>; Update: Partial<Client> };
+      services: {
+        Row: Row<Service>;
+        Insert: Partial<Service>;
+        Update: Partial<Service>;
+        Relationships: [];
+      };
+      working_hours: {
+        Row: Row<WorkingHours>;
+        Insert: Partial<WorkingHours>;
+        Update: Partial<WorkingHours>;
+        Relationships: [];
+      };
+      schedule_exceptions: {
+        Row: Row<ScheduleException>;
+        Insert: Partial<ScheduleException>;
+        Update: Partial<ScheduleException>;
+        Relationships: [];
+      };
+      clients: {
+        Row: Row<Client>;
+        Insert: Partial<Client>;
+        Update: Partial<Client>;
+        Relationships: [];
+      };
       appointments: {
-        Row: Appointment;
+        Row: Row<Appointment>;
         Insert: Partial<Appointment>;
         Update: Partial<Appointment>;
+        Relationships: [];
       };
       cancellation_policies: {
-        Row: CancellationPolicy;
+        Row: Row<CancellationPolicy>;
         Insert: Partial<CancellationPolicy>;
         Update: Partial<CancellationPolicy>;
+        Relationships: [];
       };
     };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
   };
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Text, View } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import type { Service } from '@/types/database';
 
@@ -10,11 +10,11 @@ import type { Service } from '@/types/database';
 //
 // TODO (siguientes iteraciones, en orden):
 //  1. Selección de servicio (esta pantalla) -> guardar service_id elegido
-//  2. Calendario de disponibilidad (nueva ruta (client)/[slug]/disponibilidad)
-//  3. Selector de hora
-//  4. Crear perfil / login (solo aquí se exige, ver flujo 1.2 y 1.3)
-//  5. Confirmación + pago condicional (payment_policy del negocio)
+//  2. Calendario de disponibilidad ((client)/disponibilidad, hecho)
+//  3. Crear perfil / login (solo aquí se exige, ver flujo 1.2 y 1.3)
+//  4. Confirmación + reserva + pago condicional (payment_policy del negocio)
 export default function ClientHome() {
+  const router = useRouter();
   const { slug } = useLocalSearchParams<{ slug?: string }>();
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(false);
@@ -60,12 +60,20 @@ export default function ClientHome() {
         data={services}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <View style={{ paddingVertical: 12, borderBottomWidth: 1, borderColor: '#eee' }}>
+          <Pressable
+            onPress={() =>
+              router.push({
+                pathname: '/(client)/disponibilidad',
+                params: { slug: slug!, service_id: item.id },
+              })
+            }
+            style={{ paddingVertical: 12, borderBottomWidth: 1, borderColor: '#eee' }}
+          >
             <Text style={{ fontSize: 15 }}>{item.name}</Text>
             <Text style={{ fontSize: 13, color: '#666' }}>
               {item.duration_minutes} min · {item.price} €
             </Text>
-          </View>
+          </Pressable>
         )}
         ListEmptyComponent={<Text>Este negocio todavía no tiene servicios publicados.</Text>}
       />
