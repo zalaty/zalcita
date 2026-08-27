@@ -98,6 +98,17 @@ export function formatTimeInZone(instant: Date, timeZone: string): string {
   }).format(instant);
 }
 
+// Fecha larga ('martes, 25 de agosto de 2026') tal como se ve en timeZone.
+export function formatLongDateInZone(instant: Date, timeZone: string, locale = 'es-ES'): string {
+  return new Intl.DateTimeFormat(locale, {
+    timeZone,
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(instant);
+}
+
 // Fecha de calendario ('YYYY-MM-DD') de "ahora" según timeZone.
 export function todayDateStrInZone(timeZone: string, now: Date = new Date()): string {
   const parts: Record<string, string> = {};

@@ -12,6 +12,7 @@ export default function ClientLayout() {
       <Tabs.Screen name="perfil" options={{ title: 'Perfil' }} />
       {/* Pantallas del flujo de reserva: navegables pero no son pestañas. */}
       <Tabs.Screen name="disponibilidad" options={{ title: 'Disponibilidad', href: null }} />
+      <Tabs.Screen name="confirmacion" options={{ title: 'Confirmar reserva', href: null }} />
     </Tabs>
   );
 }

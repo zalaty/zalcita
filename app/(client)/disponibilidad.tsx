@@ -180,15 +180,10 @@ export default function Disponibilidad() {
   }, [business, service, selectedDate]);
 
   function handleSelectSlot(slot: TimeRange) {
-    // TODO: crear app/(client)/confirmacion.tsx — ahí irá el login si hace
-    // falta (flujo 1.2/1.3) y la reserva real (insert en `appointments` con
-    // status 'pending' + política de pago del negocio).
     router.push({
       pathname: '/(client)/confirmacion',
       params: { slug: slug!, service_id: serviceId!, start_time: slot.start.toISOString() },
-      // La ruta todavía no existe (ver TODO de arriba), así que expo-router
-      // no puede tipar este pathname contra las rutas reales del proyecto.
-    } as unknown as Parameters<typeof router.push>[0]);
+    });
   }
 
   if (!slug || !serviceId) {
