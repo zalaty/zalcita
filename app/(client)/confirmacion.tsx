@@ -82,14 +82,18 @@ export default function Confirmacion() {
 
   const [bookedStatus, setBookedStatus] = useState<AppointmentStatus | null>(null);
 
-  // user.id (o null si no hay sesión) para el que ya resolvimos la
+  // `${business.id}:${user.id ?? 'anon'}` para la que ya resolvimos la
   // identificación/ficha. `undefined` = todavía no se ha resuelto nunca.
   // Vive en una ref (no en `step`) para que el efecto de abajo no dependa
   // de `step`: un refresco automático de token cambia la referencia de
   // `session` pero no el user.id, así que se detecta aquí y se ignora sin
   // relanzar la consulta ni resetear el paso (perdería lo que el cliente
   // esté escribiendo en el formulario de ficha, o lo sacaría de 'ready').
-  const resolvedForUserIdRef = useRef<string | null | undefined>(undefined);
+  // Incluir business.id es igual de importante: las fichas de `clients`
+  // son estrictamente por negocio (RGPD), así que si cambia el negocio hay
+  // que volver a resolver desde cero — arrastrar el clientId del negocio
+  // anterior crearía una cita ahí con la ficha equivocada.
+  const resolvedForRef = useRef<string | undefined>(undefined);
 
   // Negocio + servicio elegidos, a partir de los parámetros de navegación.
   useEffect(() => {
@@ -133,6 +137,20 @@ export default function Confirmacion() {
     };
   }, [slug, serviceId, startTimeParam]);
 
+  // Si esta pantalla se reutiliza para otra franja (los Tabs de
+  // expo-router no la desmontan entre navegaciones, solo actualizan los
+  // params), hay que olvidar el desenlace del intento anterior:
+  // 'slot-taken'/'success' no deben arrastrarse a la nueva franja. La
+  // identificación y la ficha (clientId) siguen siendo válidas para el
+  // mismo negocio+usuario, así que basta con volver a 'ready'.
+  useEffect(() => {
+    setStep((current) =>
+      current === 'slot-taken' || current === 'success' || current === 'booking' ? 'ready' : current
+    );
+    setError(null);
+    setBookedStatus(null);
+  }, [slug, serviceId, startTimeParam]);
+
   // Identificación completa: valida la sesión y resuelve la ficha de
   // cliente de este negocio. Un solo efecto, sin `step` en las dependencias
   // ni como guarda — el propio array de dependencias decide cuándo hace
@@ -148,15 +166,16 @@ export default function Confirmacion() {
   // lo que cambia la referencia de `session` sin que cambie el usuario. Si
   // eso ocurriera mientras el cliente rellena su ficha o ya está en
   // 'ready'/'booking', no debe repetirse la resolución (perdería lo que
-  // esté escribiendo, o lo sacaría de donde está). `resolvedForUserIdRef`
-  // filtra justo ese caso: solo seguimos si el user.id (o "sin sesión")
-  // cambió de verdad respecto a la última vez que resolvimos.
+  // esté escribiendo, o lo sacaría de donde está). `resolvedForRef` filtra
+  // justo ese caso: solo seguimos si la combinación negocio+usuario cambió
+  // de verdad respecto a la última vez que resolvimos.
   useEffect(() => {
     if (!business || !service || authLoading) return;
 
-    const currentUserId = session?.user.id ?? null;
-    if (resolvedForUserIdRef.current === currentUserId) return;
-    resolvedForUserIdRef.current = currentUserId;
+    const currentKey = `${business.id}:${session?.user.id ?? 'anon'}`;
+    if (resolvedForRef.current === currentKey) return;
+    resolvedForRef.current = currentKey;
+    setClientId(null); // por si arrastrábamos la ficha de otro negocio
 
     let cancelled = false;
 
