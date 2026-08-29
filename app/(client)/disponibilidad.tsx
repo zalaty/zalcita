@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
-import { computeAvailableSlots, type TimeRange } from '@/lib/availability';
+import { computeAvailableSlots, type Slot, type TimeRange } from '@/lib/availability';
 import {
   addDaysToDateStr,
   dayMonthLabel,
@@ -42,7 +42,7 @@ export default function Disponibilidad() {
   const [weekStart, setWeekStart] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
 
-  const [slots, setSlots] = useState<TimeRange[] | null>(null);
+  const [slots, setSlots] = useState<Slot[] | null>(null);
   const [loadingSlots, setLoadingSlots] = useState(false);
 
   // Negocio + servicio elegido, a partir de los parámetros de navegación.
@@ -95,8 +95,18 @@ export default function Disponibilidad() {
     };
   }, [slug, serviceId]);
 
-  // Franjas libres del día seleccionado.
-  useEffect(() => {
+  // Franjas del día seleccionado (libres y ocupadas). Va envuelto en
+  // useCallback + useFocusEffect en vez de un useEffect normal: además de
+  // recalcularse cuando cambian negocio/servicio/día (las dependencias del
+  // useCallback — todas estables entre renders: `business`/`service` son
+  // objetos de estado que solo se reasignan cuando el otro efecto los
+  // recarga de verdad, y `selectedDate` es un string 'YYYY-MM-DD', no un
+  // Date), también se repite cada vez que esta pestaña recupera el foco.
+  // Sin esto, si el cliente reserva una hora y vuelve al calendario, la
+  // pestaña sigue montada (los Tabs de expo-router no la desmontan) y
+  // mostraría la disponibilidad cacheada de la primera carga, con la hora
+  // recién ocupada todavía como libre.
+  const fetchSlots = useCallback(() => {
     if (!business || !service || !selectedDate) return;
     let cancelled = false;
     setLoadingSlots(true);
@@ -108,9 +118,9 @@ export default function Disponibilidad() {
 
       // TODO: cuando se añadan profesionales (member_id != null en
       // working_hours), la disponibilidad deberá calcularse por member_id:
-      // el cliente elegirá profesional (o "cualquiera") y estas tres
-      // queries deberán filtrar/agrupar por ese member_id en lugar de
-      // asumir horario general (member_id is null), igual que hoy.
+      // el cliente elegirá profesional (o "cualquiera") y working_hours y
+      // schedule_exceptions deberán filtrar/agrupar por ese member_id en
+      // lugar de asumir horario general (member_id is null), igual que hoy.
       const [workingHoursRes, exceptionsRes, appointmentsRes] = await Promise.all([
         supabase
           .from('working_hours')
@@ -124,16 +134,20 @@ export default function Disponibilidad() {
           .eq('business_id', business.id)
           .eq('date', selectedDate)
           .is('member_id', null),
-        supabase
-          .from('appointments')
-          // Solo horas: nunca se lee el cliente ni ningún otro dato de la
-          // cita (RGPD) — los huecos ocupados no deben revelar quién los reservó.
-          .select('start_time, end_time')
-          .eq('business_id', business.id)
-          .is('member_id', null)
-          .in('status', ['pending', 'confirmed'])
-          .lt('start_time', dayEndUtc.toISOString())
-          .gt('end_time', dayStartUtc.toISOString()),
+        // RLS solo deja leer las citas propias directamente de `appointments`
+        // ("cliente ve sus propias citas", supabase/migrations/0001_init.sql),
+        // así que las citas de otros clientes quedarían invisibles y
+        // aparecerían como libres. Esta función SECURITY DEFINER (ver
+        // supabase/migrations/0003_business_busy_slots.sql) expone solo
+        // start_time/end_time de TODAS las citas activas de este negocio —
+        // nunca client_id, service_id ni ningún otro dato de la cita — y
+        // exige business_id como parámetro obligatorio, así que nunca puede
+        // devolver la agenda de otro negocio.
+        supabase.rpc('get_business_busy_slots', {
+          p_business_id: business.id,
+          p_from: dayStartUtc.toISOString(),
+          p_to: dayEndUtc.toISOString(),
+        }),
       ]);
 
       if (cancelled) return;
@@ -178,6 +192,8 @@ export default function Disponibilidad() {
       cancelled = true;
     };
   }, [business, service, selectedDate]);
+
+  useFocusEffect(fetchSlots);
 
   function handleSelectSlot(slot: TimeRange) {
     router.push({
@@ -270,21 +286,55 @@ export default function Disponibilidad() {
             numColumns={3}
             columnWrapperStyle={{ gap: 8 }}
             contentContainerStyle={{ gap: 8 }}
-            renderItem={({ item }) => (
-              <Pressable
-                onPress={() => handleSelectSlot(item)}
-                style={{
-                  flex: 1,
-                  paddingVertical: 12,
-                  borderRadius: 8,
-                  borderWidth: 1,
-                  borderColor: '#ddd',
-                  alignItems: 'center',
-                }}
-              >
-                <Text>{formatTimeInZone(item.start, business.timezone)}</Text>
-              </Pressable>
-            )}
+            renderItem={({ item }) => {
+              const time = formatTimeInZone(item.start, business.timezone);
+
+              if (!item.available) {
+                // Ocupada: se muestra (nunca se oculta) pero claramente no
+                // pulsable — tachado + etiqueta "Ocupado" + borde
+                // discontinuo, para que no dependa solo del gris (accesible
+                // también para quien no distinga bien el color). Nunca se
+                // muestra qué cita la ocupa: solo llegan start/end del
+                // negocio (ver query de `appointments` más arriba).
+                return (
+                  <View
+                    accessible
+                    accessibilityLabel={`${time}, hora no disponible`}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 12,
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderStyle: 'dashed',
+                      borderColor: '#ccc',
+                      backgroundColor: '#f2f2f2',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text style={{ color: '#999', textDecorationLine: 'line-through' }}>{time}</Text>
+                    <Text style={{ color: '#999', fontSize: 10, fontWeight: '600' }}>Ocupado</Text>
+                  </View>
+                );
+              }
+
+              return (
+                <Pressable
+                  onPress={() => handleSelectSlot(item)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Reservar a las ${time}`}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 12,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: '#ddd',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text>{time}</Text>
+                </Pressable>
+              );
+            }}
             ListEmptyComponent={<Text>No hay horas disponibles este día.</Text>}
           />
         )}

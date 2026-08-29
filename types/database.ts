@@ -178,6 +178,18 @@ export interface Database {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      // Ver supabase/migrations/0003_business_busy_slots.sql. Devuelve solo
+      // start_time/end_time de las citas activas de UN negocio (parámetro
+      // obligatorio) — nunca client_id, service_id ni otro dato de la cita.
+      get_business_busy_slots: {
+        Args: {
+          p_business_id: string;
+          p_from: string;
+          p_to: string;
+        };
+        Returns: { start_time: string; end_time: string }[];
+      };
+    };
   };
 }

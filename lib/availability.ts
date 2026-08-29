@@ -5,6 +5,10 @@ export interface TimeRange {
   end: Date;
 }
 
+export interface Slot extends TimeRange {
+  available: boolean;
+}
+
 interface WallClockRange {
   start_time: string; // 'HH:mm' o 'HH:mm:ss' (tipo `time` de Postgres)
   end_time: string;
@@ -29,10 +33,12 @@ function overlaps(a: TimeRange, b: TimeRange): boolean {
   return a.start < b.end && a.end > b.start;
 }
 
-// Genera las franjas libres de un día trocenado el horario laboral en
-// bloques de `durationMinutes`, descartando las que solapen con citas o
-// cierres, o que ya hayan pasado. Función pura, sin acceso a red, para que
-// se pueda testear y reutilizar sin depender de Supabase ni de React.
+// Genera TODAS las franjas del horario laboral de un día, trocenado en
+// bloques de `durationMinutes`, marcando con `available: false` las que
+// solapen con citas o cierres (`blockedRanges`) — no las descarta, para que
+// la UI las pueda pintar como ocupadas. Las franjas ya pasadas sí se
+// descartan por completo, igual que antes. Función pura, sin acceso a red,
+// para que se pueda testear y reutilizar sin depender de Supabase ni de React.
 export function computeAvailableSlots({
   dateStr,
   timeZone,
@@ -40,19 +46,20 @@ export function computeAvailableSlots({
   blockedRanges,
   durationMinutes,
   now,
-}: ComputeAvailableSlotsParams): TimeRange[] {
+}: ComputeAvailableSlotsParams): Slot[] {
   const stepMs = durationMinutes * 60000;
-  const slots: TimeRange[] = [];
+  const slots: Slot[] = [];
 
   for (const range of workingRanges) {
     const rangeStartMs = zonedTimeToUtc(dateStr, toHm(range.start_time), timeZone).getTime();
     const rangeEndMs = zonedTimeToUtc(dateStr, toHm(range.end_time), timeZone).getTime();
 
     for (let startMs = rangeStartMs; startMs + stepMs <= rangeEndMs; startMs += stepMs) {
-      const slot: TimeRange = { start: new Date(startMs), end: new Date(startMs + stepMs) };
-      if (slot.start < now) continue;
-      if (blockedRanges.some((blocked) => overlaps(slot, blocked))) continue;
-      slots.push(slot);
+      const start = new Date(startMs);
+      const end = new Date(startMs + stepMs);
+      if (start < now) continue;
+      const available = !blockedRanges.some((blocked) => overlaps({ start, end }, blocked));
+      slots.push({ start, end, available });
     }
   }
 
