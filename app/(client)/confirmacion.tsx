@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, Switch, Text, TextInput, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
@@ -82,6 +82,15 @@ export default function Confirmacion() {
 
   const [bookedStatus, setBookedStatus] = useState<AppointmentStatus | null>(null);
 
+  // user.id (o null si no hay sesión) para el que ya resolvimos la
+  // identificación/ficha. `undefined` = todavía no se ha resuelto nunca.
+  // Vive en una ref (no en `step`) para que el efecto de abajo no dependa
+  // de `step`: un refresco automático de token cambia la referencia de
+  // `session` pero no el user.id, así que se detecta aquí y se ignora sin
+  // relanzar la consulta ni resetear el paso (perdería lo que el cliente
+  // esté escribiendo en el formulario de ficha, o lo sacaría de 'ready').
+  const resolvedForUserIdRef = useRef<string | null | undefined>(undefined);
+
   // Negocio + servicio elegidos, a partir de los parámetros de navegación.
   useEffect(() => {
     if (!slug || !serviceId || !startTimeParam) return;
@@ -124,49 +133,51 @@ export default function Confirmacion() {
     };
   }, [slug, serviceId, startTimeParam]);
 
-  // En cuanto tenemos negocio+servicio y sabemos si hay sesión, decidimos
-  // el primer paso real: pedir email, o resolver la ficha si ya hay sesión.
-  // La sesión de AuthContext es una copia local (localStorage): puede seguir
-  // presente aunque el servidor ya no la reconozca (caducada, revocada, o el
-  // usuario fue borrado). getUser() sí valida contra el servidor; si falla,
-  // tratamos al usuario como no autenticado y limpiamos esa sesión inválida.
+  // Identificación completa: valida la sesión y resuelve la ficha de
+  // cliente de este negocio. Un solo efecto, sin `step` en las dependencias
+  // ni como guarda — el propio array de dependencias decide cuándo hace
+  // falta repetir el proceso, así no hay dos efectos disputándose `step`.
+  //
+  // La sesión de AuthContext es una copia local (localStorage): puede
+  // seguir presente aunque el servidor ya no la reconozca (caducada,
+  // revocada, o el usuario fue borrado). getUser() sí valida contra el
+  // servidor; si falla, tratamos al usuario como no autenticado y
+  // limpiamos esa sesión inválida.
+  //
+  // Supabase refresca el access token en segundo plano cada cierto tiempo,
+  // lo que cambia la referencia de `session` sin que cambie el usuario. Si
+  // eso ocurriera mientras el cliente rellena su ficha o ya está en
+  // 'ready'/'booking', no debe repetirse la resolución (perdería lo que
+  // esté escribiendo, o lo sacaría de donde está). `resolvedForUserIdRef`
+  // filtra justo ese caso: solo seguimos si el user.id (o "sin sesión")
+  // cambió de verdad respecto a la última vez que resolvimos.
   useEffect(() => {
     if (!business || !service || authLoading) return;
-    if (step !== 'loading') return;
 
-    if (!session) {
-      setStep('email');
-      return;
-    }
+    const currentUserId = session?.user.id ?? null;
+    if (resolvedForUserIdRef.current === currentUserId) return;
+    resolvedForUserIdRef.current = currentUserId;
 
     let cancelled = false;
+
     (async () => {
-      const { data, error: userError } = await supabase.auth.getUser();
+      if (!session) {
+        setStep('email');
+        return;
+      }
+
+      const { data: userData, error: userError } = await supabase.auth.getUser();
       if (cancelled) return;
-      if (userError || !data.user) {
+      if (userError || !userData.user) {
         await supabase.auth.signOut({ scope: 'local' });
         if (cancelled) return;
         setStep('email');
         return;
       }
+
       setStep('resolving-client');
-    })();
 
-    return () => {
-      cancelled = true;
-    };
-  }, [business, service, authLoading, session, step]);
-
-  // Cuando aparece una sesión (tras verificar el código), busca la ficha de
-  // cliente de este negocio y decide si hace falta darla de alta.
-  useEffect(() => {
-    if (!session || !business) return;
-    if (step !== 'resolving-client' && step !== 'otp') return;
-    let cancelled = false;
-    setStep('resolving-client');
-
-    (async () => {
-      const { data, error: clientError } = await supabase
+      const { data: clientData, error: clientError } = await supabase
         .from('clients')
         .select('id')
         .eq('business_id', business.id)
@@ -179,8 +190,8 @@ export default function Confirmacion() {
         return;
       }
 
-      if (data) {
-        setClientId(data.id);
+      if (clientData) {
+        setClientId(clientData.id);
         setStep('ready');
       } else {
         setStep('client-form');
@@ -190,8 +201,7 @@ export default function Confirmacion() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session, business]);
+  }, [business, service, authLoading, session]);
 
   async function handleSendOtp() {
     setError(null);
