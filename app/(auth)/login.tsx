@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 
 type Mode = 'client' | 'business';
 
 // Dos vías de acceso, coherentes con pantallas-flujos.md:
 //  - Cliente: teléfono + OTP (sin contraseña que recordar, fricción mínima)
-//  - Negocio: email + contraseña (cuenta creada en el onboarding, no
-//    autoservicio de alta libre en el MVP)
+//  - Negocio: email + contraseña. Alta autoservicio en
+//    app/(auth)/registro-negocio.tsx (enlazada más abajo); esta pantalla es
+//    solo para negocios que ya tienen cuenta.
 export default function Login() {
+  const router = useRouter();
   const [mode, setMode] = useState<Mode>('client');
   const [phone, setPhone] = useState('');
   const [otpSent, setOtpSent] = useState(false);
@@ -97,6 +100,9 @@ export default function Login() {
           />
           <Pressable onPress={loginBusiness} style={{ backgroundColor: '#111', padding: 14, borderRadius: 8 }}>
             <Text style={{ color: '#fff', textAlign: 'center' }}>Entrar</Text>
+          </Pressable>
+          <Pressable onPress={() => router.push('/(auth)/registro-negocio')}>
+            <Text style={{ color: '#666', textAlign: 'center' }}>¿Tienes un negocio? Regístralo</Text>
           </Pressable>
         </>
       )}

@@ -21,6 +21,12 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     storage: AsyncStorage,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false,
+    // true: por si algún flujo futuro usa un enlace de confirmación por
+    // email (magic link, invitación...) en vez de un código. Hoy
+    // registro-negocio.tsx confirma con un código (verifyOtp), no depende
+    // de esto. Inocuo en el resto de casos: si la URL no trae parámetros de
+    // auth (el caso normal), no hace nada; en nativo no aplica (no hay
+    // window.location), así que no afecta al flujo OTP de clientes.
+    detectSessionInUrl: true,
   },
 });

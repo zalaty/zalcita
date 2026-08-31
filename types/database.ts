@@ -109,6 +109,13 @@ export interface CancellationPolicy {
   penalty_amount: number | null;
 }
 
+// La existencia de la fila ES el permiso de administrador de plataforma —
+// sin campo is_admin (ver supabase/migrations/0004_business_signup.sql).
+export interface PlatformAdmin {
+  user_id: string;
+  created_at: string;
+}
+
 // postgrest-js exige que `Row` cumpla `Record<string, unknown>`. Una
 // `interface` con propiedades nombradas (como `Business`) no lo cumple aun
 // siendo estructuralmente idéntica, por una particularidad de TypeScript:
@@ -176,6 +183,12 @@ export interface Database {
         Update: Partial<CancellationPolicy>;
         Relationships: [];
       };
+      platform_admins: {
+        Row: Row<PlatformAdmin>;
+        Insert: Partial<PlatformAdmin>;
+        Update: Partial<PlatformAdmin>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -189,6 +202,14 @@ export interface Database {
           p_to: string;
         };
         Returns: { start_time: string; end_time: string }[];
+      };
+      // Ver supabase/migrations/0004_business_signup.sql. Sin parámetros a
+      // propósito: lee business_name/owner_name de los metadatos del propio
+      // usuario autenticado (auth.jwt()), no de lo que mande el cliente.
+      // Idempotente — llamarla de más nunca duplica el negocio.
+      create_business_with_owner: {
+        Args: Record<string, never>;
+        Returns: Row<Business>;
       };
     };
   };

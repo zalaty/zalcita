@@ -8,9 +8,15 @@ interface AuthContextValue {
   session: Session | null;
   role: Role;
   loading: boolean;
+  refreshRole: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextValue>({ session: null, role: null, loading: true });
+const AuthContext = createContext<AuthContextValue>({
+  session: null,
+  role: null,
+  loading: true,
+  refreshRole: async () => {},
+});
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const [session, setSession] = useState<Session | null>(null);
@@ -39,6 +45,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setLoading(false);
       return;
     }
+
     const { data, error } = await supabase
       .from('business_members')
       .select('id')
@@ -49,12 +56,46 @@ export function AuthProvider({ children }: PropsWithChildren) {
     if (error) {
       console.warn('No se pudo resolver el rol del usuario:', error.message);
     }
-    setRole(data ? 'business' : 'client');
+
+    if (data) {
+      setRole('business');
+      setLoading(false);
+      return;
+    }
+
+    // Sin ficha de negocio todavía: si trae business_name en los metadatos
+    // (adjuntados por app/(auth)/registro-negocio.tsx al hacer signUp),
+    // acaba de confirmar su email y toca crear su negocio ahora.
+    // create_business_with_owner es idempotente (ver
+    // supabase/migrations/0004_business_signup.sql), así que llamarla de
+    // más — dos pestañas resolviendo el rol a la vez, por ejemplo — nunca
+    // duplica nada.
+    if (current.user.user_metadata?.business_name) {
+      const { error: rpcError } = await supabase.rpc('create_business_with_owner');
+      if (rpcError) {
+        console.warn('No se pudo crear el negocio pendiente:', rpcError.message);
+        setRole('client');
+        setLoading(false);
+        return;
+      }
+      setRole('business');
+      setLoading(false);
+      return;
+    }
+
+    setRole('client');
     setLoading(false);
   }
 
+  async function refreshRole() {
+    const { data } = await supabase.auth.getSession();
+    await resolveRole(data.session);
+  }
+
   return (
-    <AuthContext.Provider value={{ session, role, loading }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ session, role, loading, refreshRole }}>
+      {children}
+    </AuthContext.Provider>
   );
 }
 
