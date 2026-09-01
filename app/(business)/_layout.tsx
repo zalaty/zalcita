@@ -58,7 +58,10 @@ function BusinessPanel() {
         <Tabs.Screen name="calendario" options={{ title: 'Calendario' }} />
         <Tabs.Screen name="clientes" options={{ title: 'Clientes' }} />
         <Tabs.Screen name="resumen" options={{ title: 'Resumen' }} />
-        <Tabs.Screen name="ajustes" options={{ title: 'Ajustes' }} />
+        {/* headerShown: false — "ajustes" es ahora una carpeta con su propio
+            Stack (ajustes/_layout.tsx), que ya pone su propia cabecera por
+            pantalla; si no, saldrían dos cabeceras apiladas. */}
+        <Tabs.Screen name="ajustes" options={{ title: 'Ajustes', headerShown: false }} />
       </Tabs>
     </View>
   );
