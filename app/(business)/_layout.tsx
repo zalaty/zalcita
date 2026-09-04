@@ -62,6 +62,10 @@ function BusinessPanel() {
             Stack (ajustes/_layout.tsx), que ya pone su propia cabecera por
             pantalla; si no, saldrían dos cabeceras apiladas. */}
         <Tabs.Screen name="ajustes" options={{ title: 'Ajustes', headerShown: false }} />
+        {/* Pantalla de crear/mover cita: navegable desde calendario.tsx,
+            pero no es una pestaña — mismo patrón que disponibilidad/
+            confirmacion en (client)/_layout.tsx. */}
+        <Tabs.Screen name="cita" options={{ title: 'Cita', href: null }} />
       </Tabs>
     </View>
   );

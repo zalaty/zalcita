@@ -3,6 +3,7 @@ import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { computeAvailableSlots, type Slot, type TimeRange } from '@/lib/availability';
+import { fetchDaySchedule } from '@/lib/schedule';
 import {
   addDaysToDateStr,
   dayMonthLabel,
@@ -121,19 +122,8 @@ export default function Disponibilidad() {
       // el cliente elegirá profesional (o "cualquiera") y working_hours y
       // schedule_exceptions deberán filtrar/agrupar por ese member_id en
       // lugar de asumir horario general (member_id is null), igual que hoy.
-      const [workingHoursRes, exceptionsRes, appointmentsRes] = await Promise.all([
-        supabase
-          .from('working_hours')
-          .select('start_time, end_time')
-          .eq('business_id', business.id)
-          .eq('day_of_week', dayOfWeek)
-          .is('member_id', null),
-        supabase
-          .from('schedule_exceptions')
-          .select('is_closed, start_time, end_time')
-          .eq('business_id', business.id)
-          .eq('date', selectedDate)
-          .is('member_id', null),
+      const [scheduleRes, appointmentsRes] = await Promise.all([
+        fetchDaySchedule(business.id, selectedDate, business.timezone, dayOfWeek),
         // RLS solo deja leer las citas propias directamente de `appointments`
         // ("cliente ve sus propias citas", supabase/migrations/0001_init.sql),
         // así que las citas de otros clientes quedarían invisibles y
@@ -151,25 +141,11 @@ export default function Disponibilidad() {
       ]);
 
       if (cancelled) return;
-      if (workingHoursRes.error) console.warn(workingHoursRes.error.message);
-      if (exceptionsRes.error) console.warn(exceptionsRes.error.message);
+      if (scheduleRes.error) console.warn(scheduleRes.error);
       if (appointmentsRes.error) console.warn(appointmentsRes.error.message);
 
-      const exceptions = exceptionsRes.data ?? [];
-      // is_closed=true SIN horas -> cierra el día completo.
-      // is_closed=true CON start_time/end_time -> bloquea solo esa franja.
-      const fullDayClosed = exceptions.some((e) => e.is_closed && !e.start_time && !e.end_time);
-
-      const blockedRanges: TimeRange[] = [];
-
-      for (const e of exceptions) {
-        if (e.is_closed && e.start_time && e.end_time) {
-          blockedRanges.push({
-            start: zonedTimeToUtc(selectedDate, e.start_time.slice(0, 5), business.timezone),
-            end: zonedTimeToUtc(selectedDate, e.end_time.slice(0, 5), business.timezone),
-          });
-        }
-      }
+      const schedule = scheduleRes.data;
+      const blockedRanges: TimeRange[] = [...(schedule?.exceptionBlockedRanges ?? [])];
 
       for (const a of appointmentsRes.data ?? []) {
         blockedRanges.push({ start: new Date(a.start_time), end: new Date(a.end_time) });
@@ -178,7 +154,7 @@ export default function Disponibilidad() {
       const computed = computeAvailableSlots({
         dateStr: selectedDate,
         timeZone: business.timezone,
-        workingRanges: fullDayClosed ? [] : workingHoursRes.data ?? [],
+        workingRanges: schedule?.fullDayClosed ? [] : schedule?.workingRanges ?? [],
         blockedRanges,
         durationMinutes: service.duration_minutes,
         now: new Date(),
