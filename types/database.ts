@@ -211,6 +211,16 @@ export interface Database {
         Args: Record<string, never>;
         Returns: Row<Business>;
       };
+      // Ver supabase/migrations/0006_fix_platform_admin_rls.sql. security
+      // definer: comprueba platform_admins saltándose sus grants, para que
+      // anon/authenticated puedan usarla dentro de políticas RLS sin
+      // necesitar permiso de lectura sobre esa tabla. También se llama
+      // directamente por RPC desde el cliente (hooks/useIsPlatformAdmin.ts)
+      // para decidir si mostrar/permitir la pantalla de administración.
+      is_platform_admin: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
     };
   };
 }

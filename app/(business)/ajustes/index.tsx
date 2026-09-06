@@ -1,5 +1,6 @@
 import { Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useIsPlatformAdmin } from '@/hooks/useIsPlatformAdmin';
 
 // TODO: añadir más secciones aquí conforme se construyan: políticas de
 // cancelación y pago (`cancellation_policies` + campos de `businesses`),
@@ -7,6 +8,7 @@ import { useRouter } from 'expo-router';
 // esta carpeta, enlazada desde aquí, mismo patrón que "servicios"/"horarios".
 export default function AjustesMenu() {
   const router = useRouter();
+  const { isAdmin } = useIsPlatformAdmin();
 
   return (
     <View style={{ flex: 1, padding: 16 }}>
@@ -22,6 +24,17 @@ export default function AjustesMenu() {
       >
         <Text style={{ fontSize: 16 }}>Horarios</Text>
       </Pressable>
+      {/* Solo visible para quien tenga fila en platform_admins — ver
+          hooks/useIsPlatformAdmin.ts. Es solo un atajo: la pantalla en sí
+          está protegida en app/admin/_layout.tsx pase lo que pase aquí. */}
+      {isAdmin && (
+        <Pressable
+          onPress={() => router.push('/admin')}
+          style={{ paddingVertical: 16, borderBottomWidth: 1, borderColor: '#eee' }}
+        >
+          <Text style={{ fontSize: 16 }}>Administración de plataforma</Text>
+        </Pressable>
+      )}
     </View>
   );
 }
