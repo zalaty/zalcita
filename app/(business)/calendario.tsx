@@ -4,24 +4,8 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useBusiness } from '@/context/BusinessContext';
 import { addDaysToDateStr, formatLongDateInZone, formatTimeInZone, todayDateStrInZone, zonedTimeToUtc } from '@/lib/timezone';
-import { fetchAppointmentsInRange, type AppointmentDetails } from '@/lib/appointments';
+import { fetchAppointmentsInRange, STATUS_COLORS, STATUS_LABELS, type AppointmentDetails } from '@/lib/appointments';
 import type { Appointment, AppointmentStatus } from '@/types/database';
-
-const STATUS_LABELS: Record<AppointmentStatus, string> = {
-  pending: 'Pendiente',
-  confirmed: 'Confirmada',
-  cancelled: 'Cancelada',
-  completed: 'Completada',
-  no_show: 'No se presentó',
-};
-
-const STATUS_COLORS: Record<AppointmentStatus, string> = {
-  pending: '#b45309',
-  confirmed: '#15803d',
-  cancelled: '#6b7280',
-  completed: '#1d4ed8',
-  no_show: '#b91c1c',
-};
 
 const buttonStyle = { backgroundColor: '#111', padding: 14, borderRadius: 8 };
 const buttonTextStyle = { color: '#fff', textAlign: 'center' as const, fontWeight: '600' as const };
