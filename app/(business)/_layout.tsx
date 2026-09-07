@@ -66,6 +66,8 @@ function BusinessPanel() {
             pero no es una pestaña — mismo patrón que disponibilidad/
             confirmacion en (client)/_layout.tsx. */}
         <Tabs.Screen name="cita" options={{ title: 'Cita', href: null }} />
+        {/* Ficha de cliente: navegable desde clientes.tsx, tampoco es pestaña. */}
+        <Tabs.Screen name="cliente/[id]" options={{ title: 'Cliente', href: null }} />
       </Tabs>
     </View>
   );

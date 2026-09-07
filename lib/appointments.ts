@@ -81,6 +81,55 @@ export async function fetchAppointmentsInRange(
   return { data: merged, error: null };
 }
 
+export interface ClientHistoryAppointment {
+  id: string;
+  start_time: string;
+  end_time: string;
+  status: AppointmentStatus;
+  price_at_booking: number;
+  serviceName: string;
+}
+
+// Historial de citas de UNA ficha de cliente concreta, en este negocio —
+// para la ficha de cliente (app/(business)/cliente/[id].tsx). Mismo patrón
+// sin joins que el resto: 2 queries + merge.
+export async function fetchClientAppointmentHistory(
+  businessId: string,
+  clientId: string
+): Promise<{ data: ClientHistoryAppointment[] | null; error: string | null }> {
+  const { data: appointments, error: apptError } = await supabase
+    .from('appointments')
+    .select('id, service_id, start_time, end_time, status, price_at_booking')
+    .eq('business_id', businessId)
+    .eq('client_id', clientId)
+    .order('start_time', { ascending: false });
+
+  if (apptError) return { data: null, error: apptError.message };
+  if (!appointments || appointments.length === 0) return { data: [], error: null };
+
+  const serviceIds = [...new Set(appointments.map((a) => a.service_id))];
+  const { data: services, error: servicesError } = await supabase
+    .from('services')
+    .select('id, name')
+    .eq('business_id', businessId)
+    .in('id', serviceIds);
+
+  if (servicesError) return { data: null, error: servicesError.message };
+
+  const serviceById = new Map((services ?? []).map((s) => [s.id, s]));
+
+  const merged: ClientHistoryAppointment[] = appointments.map((a) => ({
+    id: a.id,
+    start_time: a.start_time,
+    end_time: a.end_time,
+    status: a.status,
+    price_at_booking: a.price_at_booking,
+    serviceName: serviceById.get(a.service_id)?.name ?? 'Servicio',
+  }));
+
+  return { data: merged, error: null };
+}
+
 export interface ClientAppointmentDetails {
   id: string;
   start_time: string;
