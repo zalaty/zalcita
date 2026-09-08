@@ -129,3 +129,34 @@ export function mondayOfWeek(dateStr: string): string {
   const diffToMonday = dow === 0 ? -6 : 1 - dow;
   return addDaysToDateStr(dateStr, diffToMonday);
 }
+
+// Mes de calendario ('YYYY-MM') de "ahora" según timeZone.
+export function currentMonthStrInZone(timeZone: string, now: Date = new Date()): string {
+  return todayDateStrInZone(timeZone, now).slice(0, 7);
+}
+
+export function addMonthsToMonthStr(monthStr: string, months: number): string {
+  const [year, month] = monthStr.split('-').map(Number);
+  const d = new Date(Date.UTC(year, month - 1 + months, 1));
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}`;
+}
+
+// Límites [inicio, fin) del mes como instantes UTC reales, respetando el
+// cambio de hora — mismo motivo que zonedTimeToUtc para los días: el día 1
+// a medianoche en la timezone del negocio no es medianoche UTC.
+export function monthRangeUtc(monthStr: string, timeZone: string): { startUtc: Date; endUtc: Date } {
+  const [year, month] = monthStr.split('-').map(Number);
+  const nextMonthStr = addMonthsToMonthStr(monthStr, 1);
+  const [nextYear, nextMonth] = nextMonthStr.split('-').map(Number);
+  return {
+    startUtc: zonedTimeToUtc(`${year}-${pad(month)}-01`, '00:00', timeZone),
+    endUtc: zonedTimeToUtc(`${nextYear}-${pad(nextMonth)}-01`, '00:00', timeZone),
+  };
+}
+
+// Etiqueta 'septiembre de 2026' para la cabecera del selector de periodo.
+export function monthLabel(monthStr: string, locale = 'es-ES'): string {
+  const [year, month] = monthStr.split('-').map(Number);
+  const anchor = new Date(Date.UTC(year, month - 1, 1));
+  return new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(anchor);
+}
