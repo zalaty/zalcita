@@ -2,10 +2,9 @@ import { Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useIsPlatformAdmin } from '@/hooks/useIsPlatformAdmin';
 
-// TODO: añadir más secciones aquí conforme se construyan: políticas de
-// cancelación y pago (`cancellation_policies` + campos de `businesses`),
-// datos del negocio, Stripe — cada una como su propia pantalla dentro de
-// esta carpeta, enlazada desde aquí, mismo patrón que "servicios"/"horarios".
+// TODO: añadir más secciones aquí conforme se construyan: datos del
+// negocio, Stripe — cada una como su propia pantalla dentro de esta
+// carpeta, enlazada desde aquí, mismo patrón que "servicios"/"horarios".
 export default function AjustesMenu() {
   const router = useRouter();
   const { isAdmin } = useIsPlatformAdmin();
@@ -23,6 +22,12 @@ export default function AjustesMenu() {
         style={{ paddingVertical: 16, borderBottomWidth: 1, borderColor: '#eee' }}
       >
         <Text style={{ fontSize: 16 }}>Horarios</Text>
+      </Pressable>
+      <Pressable
+        onPress={() => router.push('/(business)/ajustes/politicas')}
+        style={{ paddingVertical: 16, borderBottomWidth: 1, borderColor: '#eee' }}
+      >
+        <Text style={{ fontSize: 16 }}>Políticas de cancelación y pago</Text>
       </Pressable>
       {/* Solo visible para quien tenga fila en platform_admins — ver
           hooks/useIsPlatformAdmin.ts. Es solo un atajo: la pantalla en sí
