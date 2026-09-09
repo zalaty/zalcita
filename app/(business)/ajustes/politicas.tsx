@@ -216,7 +216,7 @@ export default function Politicas() {
           style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
         >
           <Text style={{ fontSize: 14, flex: 1 }}>El cliente puede cancelar su cita desde la app</Text>
-          <Switch value={allowCancellation} onValueChange={setAllowCancellation} pointerEvents="none" />
+          <Switch value={allowCancellation} onValueChange={setAllowCancellation} style={{ pointerEvents: 'none' }} />
         </Pressable>
 
         {allowCancellation && (
@@ -289,7 +289,7 @@ export default function Politicas() {
           style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
         >
           <Text style={{ fontSize: 14, flex: 1 }}>Confirmar manualmente cada cita antes de aceptarla</Text>
-          <Switch value={requiresOwnerConfirmation} onValueChange={setRequiresOwnerConfirmation} pointerEvents="none" />
+          <Switch value={requiresOwnerConfirmation} onValueChange={setRequiresOwnerConfirmation} style={{ pointerEvents: 'none' }} />
         </Pressable>
         <Text style={noteStyle}>
           Si está activo, las reservas de cliente entran como "pendientes" hasta que las confirmes.

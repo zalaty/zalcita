@@ -7,6 +7,7 @@ export default function AjustesLayout() {
       <Stack.Screen name="servicios" options={{ title: 'Servicios' }} />
       <Stack.Screen name="horarios" options={{ title: 'Horarios' }} />
       <Stack.Screen name="politicas" options={{ title: 'Políticas' }} />
+      <Stack.Screen name="datos" options={{ title: 'Datos del negocio' }} />
     </Stack>
   );
 }

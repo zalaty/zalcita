@@ -27,7 +27,16 @@ export default function BusinessLayout() {
 function BusinessPanel() {
   const { business, loading } = useBusiness();
 
-  if (loading) {
+  // Solo bloquea con el spinner a pantalla completa en la carga INICIAL
+  // (todavía no hay `business` que mostrar). `loading` también se pone a
+  // true en cada refreshBusiness() posterior (p.ej. tras guardar en
+  // ajustes/datos.tsx o ajustes/politicas.tsx) — si el guard fuera solo
+  // `loading`, cada uno de esos refrescos desmontaría este <Tabs> entero
+  // (con su Stack anidado de "ajustes" dentro), reseteando la navegación
+  // a la pestaña por defecto (Calendario) y borrando cualquier mensaje de
+  // "Guardado." a mitad de flujo — confirmado en vivo. Con datos ya
+  // cargados, un refresco de fondo no debe hacer desaparecer el panel.
+  if (loading && !business) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator />
