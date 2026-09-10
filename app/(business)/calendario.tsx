@@ -52,8 +52,19 @@ const DEFAULT_GRID_BOUNDS = { startMin: 8 * 60, endMin: 20 * 60 };
 // esta semana) sin que sus huecos desaparezcan solo por ser del pasado.
 const EARLY_EPOCH = new Date(0);
 const COLOR_CLOSED_BG = '#f2f2f2';
-const COLOR_FREE_BG = '#e8f5e9';
 const COLOR_BLOCKED_BG = '#e5e5e5';
+// Huecos libres: NUNCA verde — STATUS_COLORS ya usa verde oscuro para
+// "confirmed" (lib/appointments.ts), y un verde claro al lado se confundía
+// con eso (poco contraste, además, para daltonismo). Blanco + borde
+// punteado + etiqueta "Libre": la distinción libre/ocupado no depende del
+// matiz de color en ningún punto.
+const COLOR_FREE_BG = '#ffffff';
+const COLOR_FREE_BORDER = '#64748b';
+const COLOR_FREE_TEXT = '#334155';
+// Bajo este alto en píxeles (PX_PER_MINUTE=1 -> px = minutos) la etiqueta
+// "Libre" no cabe legible; el hueco sigue siendo distinguible por el borde
+// punteado + el blanco solo.
+const FREE_LABEL_MIN_HEIGHT = 18;
 
 function hmToMinutes(value: string): number {
   const [h, m] = value.slice(0, 5).split(':').map(Number);
@@ -256,27 +267,43 @@ function WeekDayColumn({
           />
         ))}
 
-        {segments.map((seg, i) =>
-          seg.available ? (
-            <Pressable
-              key={i}
-              onPress={() => onNewAppointment(dateStr, minutesToHm(seg.startMin))}
-              style={{
-                position: 'absolute',
-                top: (seg.startMin - gridBounds.startMin) * PX_PER_MINUTE,
-                height: (seg.endMin - seg.startMin) * PX_PER_MINUTE,
-                left: 0,
-                right: 0,
-                backgroundColor: COLOR_FREE_BG,
-              }}
-            />
-          ) : (
+        {segments.map((seg, i) => {
+          const top = (seg.startMin - gridBounds.startMin) * PX_PER_MINUTE;
+          const height = (seg.endMin - seg.startMin) * PX_PER_MINUTE;
+
+          if (seg.available) {
+            return (
+              <Pressable
+                key={i}
+                onPress={() => onNewAppointment(dateStr, minutesToHm(seg.startMin))}
+                style={{
+                  position: 'absolute',
+                  top,
+                  height,
+                  left: 0,
+                  right: 0,
+                  backgroundColor: COLOR_FREE_BG,
+                  borderWidth: 1,
+                  borderStyle: 'dashed',
+                  borderColor: COLOR_FREE_BORDER,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {height >= FREE_LABEL_MIN_HEIGHT && (
+                  <Text style={{ fontSize: 9, fontWeight: '600', color: COLOR_FREE_TEXT }}>Libre</Text>
+                )}
+              </Pressable>
+            );
+          }
+
+          return (
             <View
               key={i}
               style={{
                 position: 'absolute',
-                top: (seg.startMin - gridBounds.startMin) * PX_PER_MINUTE,
-                height: (seg.endMin - seg.startMin) * PX_PER_MINUTE,
+                top,
+                height,
                 left: 0,
                 right: 0,
                 backgroundColor: COLOR_BLOCKED_BG,
@@ -286,8 +313,8 @@ function WeekDayColumn({
                 borderStyle: 'dashed',
               }}
             />
-          )
-        )}
+          );
+        })}
 
         {laned.map(({ appointment, lane }) => {
           const startMin = clamp(slotToMinutes(new Date(appointment.start_time), tz), gridBounds.startMin, gridBounds.endMin);
@@ -444,7 +471,17 @@ function CalendarioSemana({
             </View>
 
             {isNarrow ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              // flex: 1 es la parte que faltaba: sin una dimensión propia,
+              // un ScrollView anidado en React Native Web se limita a
+              // encoger/crecer a su CONTENIDO (aquí, 7×120px) en vez de
+              // quedarse acotado al hueco restante de la fila — así nunca
+              // desborda internamente y no hay nada que arrastrar; el
+              // ScrollView exterior (solo vertical) recorta el resto sin
+              // dar forma de llegar a él. Con flex: 1 este ScrollView SÍ
+              // queda acotado al ancho disponible junto a la columna de
+              // horas, y su contenido (más ancho) pasa a desbordar DENTRO
+              // de él, que es lo que lo hace deslizable.
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row' }}>
                   {weekDays.map((dateStr) => (
                     <WeekDayColumn
