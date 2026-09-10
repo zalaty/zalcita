@@ -98,6 +98,7 @@ export interface ScheduleException {
   is_closed: boolean;
   start_time: string | null; // null junto a end_time null = cierra todo el día
   end_time: string | null;
+  reason: string | null; // motivo opcional, visible para el cliente (0012)
 }
 
 export interface CancellationPolicy {

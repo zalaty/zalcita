@@ -7,10 +7,18 @@ interface WorkingRange {
   end_time: string;
 }
 
+// Un bloque de excepción con su motivo (0012) — sigue siendo un TimeRange
+// válido para computeAvailableSlots (que solo mira start/end), el motivo
+// es un extra que consumen las pantallas que sí quieren mostrarlo.
+export interface ExceptionBlock extends TimeRange {
+  reason: string | null;
+}
+
 export interface DaySchedule {
   workingRanges: WorkingRange[];
-  exceptionBlockedRanges: TimeRange[]; // ya convertidos a instantes UTC
+  exceptionBlockedRanges: ExceptionBlock[]; // ya convertidos a instantes UTC
   fullDayClosed: boolean;
+  fullDayClosedReason: string | null;
 }
 
 // Horario laboral + excepciones de UN día, ya resueltos a la forma que
@@ -33,7 +41,7 @@ export async function fetchDaySchedule(
       .is('member_id', null),
     supabase
       .from('schedule_exceptions')
-      .select('is_closed, start_time, end_time')
+      .select('is_closed, start_time, end_time, reason')
       .eq('business_id', businessId)
       .eq('date', dateStr)
       .is('member_id', null),
@@ -45,20 +53,27 @@ export async function fetchDaySchedule(
   const exceptions = exceptionsRes.data ?? [];
   // is_closed=true SIN horas -> cierra el día completo.
   // is_closed=true CON start_time/end_time -> bloquea solo esa franja.
-  const fullDayClosed = exceptions.some((e) => e.is_closed && !e.start_time && !e.end_time);
+  const fullDayClosedRow = exceptions.find((e) => e.is_closed && !e.start_time && !e.end_time);
+  const fullDayClosed = !!fullDayClosedRow;
 
-  const exceptionBlockedRanges: TimeRange[] = [];
+  const exceptionBlockedRanges: ExceptionBlock[] = [];
   for (const e of exceptions) {
     if (e.is_closed && e.start_time && e.end_time) {
       exceptionBlockedRanges.push({
         start: zonedTimeToUtc(dateStr, e.start_time.slice(0, 5), timeZone),
         end: zonedTimeToUtc(dateStr, e.end_time.slice(0, 5), timeZone),
+        reason: e.reason,
       });
     }
   }
 
   return {
-    data: { workingRanges: workingHoursRes.data ?? [], exceptionBlockedRanges, fullDayClosed },
+    data: {
+      workingRanges: workingHoursRes.data ?? [],
+      exceptionBlockedRanges,
+      fullDayClosed,
+      fullDayClosedReason: fullDayClosedRow?.reason ?? null,
+    },
     error: null,
   };
 }

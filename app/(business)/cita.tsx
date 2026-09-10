@@ -428,6 +428,12 @@ export default function Cita() {
     daySchedule &&
     (daySchedule.fullDayClosed || overlapsAnyRange(chosenStartUtc, chosenEndUtc, daySchedule.exceptionBlockedRanges))
   );
+  const closedReason = daySchedule?.fullDayClosed
+    ? daySchedule.fullDayClosedReason
+    : chosenStartUtc && chosenEndUtc && daySchedule
+      ? daySchedule.exceptionBlockedRanges.find((r) => chosenStartUtc < r.end && chosenEndUtc > r.start)?.reason ??
+        null
+      : null;
   const overlappingAppointments =
     chosenStartUtc && chosenEndUtc
       ? findOverlappingAppointments(chosenStartUtc, chosenEndUtc, dayAppointments ?? [], appointmentId)
@@ -631,7 +637,11 @@ export default function Cita() {
         {hasWarnings && (
           <View style={{ backgroundColor: '#fff3cd', borderWidth: 1, borderColor: '#ffe69c', borderRadius: 8, padding: 10, gap: 4 }}>
             {outsideHours && <Text style={{ color: '#664d03', fontSize: 13 }}>Fuera del horario habitual del negocio.</Text>}
-            {closed && <Text style={{ color: '#664d03', fontSize: 13 }}>Este día está marcado como cerrado.</Text>}
+            {closed && (
+              <Text style={{ color: '#664d03', fontSize: 13 }}>
+                Este día está marcado como cerrado{closedReason ? `: ${closedReason}` : '.'}
+              </Text>
+            )}
             {overlappingAppointments.map((a) => (
               <Text key={a.id} style={{ color: '#664d03', fontSize: 13 }}>
                 Se solapa con la cita de {a.clientName} a las {formatTimeInZone(new Date(a.start_time), business.timezone)}.

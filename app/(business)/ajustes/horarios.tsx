@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 
 import { useFocusEffect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useBusiness } from '@/context/BusinessContext';
-import { todayDateStrInZone } from '@/lib/timezone';
+import { addDaysToDateStr, addMonthsToMonthStr, daysInMonthStr, dayOfWeekFromDateStr, monthLabel, todayDateStrInZone } from '@/lib/timezone';
 import type { ScheduleException, WorkingHours } from '@/types/database';
 
 const inputStyle = { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12 };
@@ -32,6 +32,25 @@ const WEEKDAYS: { dow: number; label: string }[] = [
   { dow: 0, label: 'Domingo' },
 ];
 
+const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+const MINUTES = ['00', '15', '30', '45'];
+const WEEKDAY_HEADER = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+
+function chipStyle(selected: boolean) {
+  return {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: selected ? '#111' : '#ccc',
+    backgroundColor: selected ? '#111' : 'transparent',
+  };
+}
+
+function chipTextStyle(selected: boolean) {
+  return { fontSize: 13, color: selected ? '#fff' : '#111', fontWeight: selected ? ('600' as const) : ('400' as const) };
+}
+
 function timeToMinutes(value: string): number | null {
   const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(value);
   if (!match) return null;
@@ -46,6 +65,113 @@ function isValidDateStr(value: string): boolean {
   const day = Number(match[3]);
   const date = new Date(Date.UTC(year, month - 1, day));
   return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}
+
+// Reemplaza el TextInput libre "HH:mm" por dos filas de chips (hora +
+// minutos en pasos de 15) — a prueba de "25:99" por construcción, sin
+// depender de ningún selector nativo (ver conversación: el "estándar" del
+// ecosistema, @react-native-community/datetimepicker, no tiene ninguna
+// implementación para web).
+function TimeSelector({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const [h, m] = value.includes(':') ? value.split(':') : ['', ''];
+
+  return (
+    <View style={{ gap: 6, flex: 1 }}>
+      <Text style={{ fontSize: 12, color: '#666' }}>{label}</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <View style={{ flexDirection: 'row', gap: 6 }}>
+          {HOURS.map((hh) => (
+            <Pressable key={hh} onPress={() => onChange(`${hh}:${m || '00'}`)} style={chipStyle(h === hh)}>
+              <Text style={chipTextStyle(h === hh)}>{hh}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </ScrollView>
+      <View style={{ flexDirection: 'row', gap: 6 }}>
+        {MINUTES.map((mm) => (
+          <Pressable key={mm} onPress={() => onChange(`${h || '00'}:${mm}`)} style={chipStyle(m === mm)}>
+            <Text style={chipTextStyle(m === mm)}>{mm}</Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+// Rejilla de mes para elegir la fecha de una excepción — construida sobre
+// la aritmética de mes que ya vive en lib/timezone.ts (probada en
+// resumen.tsx), no lógica de fechas nueva.
+function MonthCalendar({
+  selectedDate,
+  minDate,
+  onSelect,
+}: {
+  selectedDate: string;
+  minDate: string;
+  onSelect: (dateStr: string) => void;
+}) {
+  const [viewMonth, setViewMonth] = useState(() => (selectedDate || minDate).slice(0, 7));
+
+  const firstOfMonth = `${viewMonth}-01`;
+  const dow = dayOfWeekFromDateStr(firstOfMonth); // 0=domingo..6=sábado
+  const leadingBlank = dow === 0 ? 6 : dow - 1; // alinea con la cabecera L-D
+  const total = daysInMonthStr(viewMonth);
+  const cells: (string | null)[] = [
+    ...Array(leadingBlank).fill(null),
+    ...Array.from({ length: total }, (_, i) => addDaysToDateStr(firstOfMonth, i)),
+  ];
+
+  return (
+    <View style={{ gap: 8 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Pressable onPress={() => setViewMonth((m) => addMonthsToMonthStr(m, -1))} style={{ padding: 8 }}>
+          <Text style={{ fontSize: 18 }}>‹</Text>
+        </Pressable>
+        <Text style={{ flex: 1, textAlign: 'center', fontSize: 14, fontWeight: '600', textTransform: 'capitalize' }}>
+          {monthLabel(viewMonth)}
+        </Text>
+        <Pressable onPress={() => setViewMonth((m) => addMonthsToMonthStr(m, 1))} style={{ padding: 8 }}>
+          <Text style={{ fontSize: 18 }}>›</Text>
+        </Pressable>
+      </View>
+      <View style={{ flexDirection: 'row' }}>
+        {WEEKDAY_HEADER.map((d, i) => (
+          <Text key={i} style={{ width: `${100 / 7}%`, textAlign: 'center', fontSize: 11, color: '#666' }}>
+            {d}
+          </Text>
+        ))}
+      </View>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+        {cells.map((dateStr, i) => {
+          if (!dateStr) return <View key={`blank-${i}`} style={{ width: `${100 / 7}%`, aspectRatio: 1 }} />;
+          const disabled = dateStr < minDate;
+          const selected = dateStr === selectedDate;
+          return (
+            <Pressable
+              key={dateStr}
+              disabled={disabled}
+              onPress={() => onSelect(dateStr)}
+              style={{ width: `${100 / 7}%`, aspectRatio: 1, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <View
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: selected ? '#111' : 'transparent',
+                  opacity: disabled ? 0.3 : 1,
+                }}
+              >
+                <Text style={{ color: selected ? '#fff' : '#111', fontSize: 13 }}>{Number(dateStr.slice(8, 10))}</Text>
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
 }
 
 type EditingSlot = { dayOfWeek: number; original: WorkingHours | null } | null;
@@ -76,6 +202,7 @@ export default function Horarios() {
   const [exceptionMode, setExceptionMode] = useState<'full' | 'partial'>('full');
   const [exceptionStart, setExceptionStart] = useState('');
   const [exceptionEnd, setExceptionEnd] = useState('');
+  const [exceptionReason, setExceptionReason] = useState('');
   const [savingException, setSavingException] = useState(false);
   const [exceptionError, setExceptionError] = useState<string | null>(null);
 
@@ -237,6 +364,7 @@ export default function Horarios() {
     setExceptionMode('full');
     setExceptionStart('');
     setExceptionEnd('');
+    setExceptionReason('');
     setExceptionError(null);
   }
 
@@ -267,6 +395,7 @@ export default function Horarios() {
       is_closed: true,
       start_time: exceptionMode === 'partial' ? exceptionStart : null,
       end_time: exceptionMode === 'partial' ? exceptionEnd : null,
+      reason: exceptionReason.trim() === '' ? null : exceptionReason.trim(),
     });
 
     if (error) {
@@ -337,19 +466,9 @@ export default function Horarios() {
 
                 {isEditingThisDay ? (
                   <View style={formBoxStyle}>
-                    <View style={{ flexDirection: 'row', gap: 8 }}>
-                      <TextInput
-                        placeholder="Inicio (HH:mm)"
-                        value={slotStart}
-                        onChangeText={setSlotStart}
-                        style={{ ...inputStyle, flex: 1 }}
-                      />
-                      <TextInput
-                        placeholder="Fin (HH:mm)"
-                        value={slotEnd}
-                        onChangeText={setSlotEnd}
-                        style={{ ...inputStyle, flex: 1 }}
-                      />
+                    <View style={{ flexDirection: 'row', gap: 12 }}>
+                      <TimeSelector label="Inicio" value={slotStart} onChange={setSlotStart} />
+                      <TimeSelector label="Fin" value={slotEnd} onChange={setSlotEnd} />
                     </View>
                     <View style={{ flexDirection: 'row', gap: 8 }}>
                       <Pressable
@@ -392,12 +511,13 @@ export default function Horarios() {
             )}
             {(exceptions ?? []).map((exception) => (
               <View key={exception.id} style={rowStyle}>
-                <View>
+                <View style={{ flex: 1 }}>
                   <Text style={{ fontWeight: '600' }}>{exception.date}</Text>
                   <Text style={{ color: '#666', fontSize: 13 }}>
                     {exception.start_time && exception.end_time
                       ? `Cerrado de ${exception.start_time.slice(0, 5)} a ${exception.end_time.slice(0, 5)}`
                       : 'Cerrado todo el día'}
+                    {exception.reason ? ` — ${exception.reason}` : ''}
                   </Text>
                 </View>
                 <Pressable
@@ -415,14 +535,10 @@ export default function Horarios() {
 
         {addingException ? (
           <View style={formBoxStyle}>
-            <TextInput
-              placeholder="Fecha (AAAA-MM-DD)"
-              value={exceptionDate}
-              onChangeText={setExceptionDate}
-              style={inputStyle}
-            />
+            <Text style={{ fontSize: 13, color: '#444' }}>Fecha</Text>
+            <MonthCalendar selectedDate={exceptionDate} minDate={today} onSelect={setExceptionDate} />
 
-            <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
               <Pressable
                 onPress={() => setExceptionMode('full')}
                 style={{
@@ -459,22 +575,19 @@ export default function Horarios() {
                   Indica la franja horaria que permanecerá CERRADA ese día — el resto del horario
                   habitual sigue abierto.
                 </Text>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <TextInput
-                    placeholder="Cierra desde (HH:mm)"
-                    value={exceptionStart}
-                    onChangeText={setExceptionStart}
-                    style={{ ...inputStyle, flex: 1 }}
-                  />
-                  <TextInput
-                    placeholder="Hasta (HH:mm)"
-                    value={exceptionEnd}
-                    onChangeText={setExceptionEnd}
-                    style={{ ...inputStyle, flex: 1 }}
-                  />
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <TimeSelector label="Cierra desde" value={exceptionStart} onChange={setExceptionStart} />
+                  <TimeSelector label="Hasta" value={exceptionEnd} onChange={setExceptionEnd} />
                 </View>
               </View>
             )}
+
+            <TextInput
+              placeholder="Motivo (opcional, se mostrará al cliente)"
+              value={exceptionReason}
+              onChangeText={setExceptionReason}
+              style={inputStyle}
+            />
 
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <Pressable

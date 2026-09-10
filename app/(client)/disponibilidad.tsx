@@ -3,7 +3,7 @@ import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { computeAvailableSlots, type Slot, type TimeRange } from '@/lib/availability';
-import { fetchDaySchedule } from '@/lib/schedule';
+import { fetchDaySchedule, type DaySchedule } from '@/lib/schedule';
 import {
   addDaysToDateStr,
   dayMonthLabel,
@@ -44,6 +44,7 @@ export default function Disponibilidad() {
   const [selectedDate, setSelectedDate] = useState('');
 
   const [slots, setSlots] = useState<Slot[] | null>(null);
+  const [daySchedule, setDaySchedule] = useState<DaySchedule | null>(null);
   const [loadingSlots, setLoadingSlots] = useState(false);
 
   // Negocio + servicio elegido, a partir de los parámetros de navegación.
@@ -160,6 +161,7 @@ export default function Disponibilidad() {
         now: new Date(),
       });
 
+      setDaySchedule(schedule ?? null);
       setSlots(computed);
       setLoadingSlots(false);
     })();
@@ -253,6 +255,27 @@ export default function Disponibilidad() {
       </View>
 
       <View style={{ flex: 1, padding: 16 }}>
+        {!loadingSlots && daySchedule?.fullDayClosed && (
+          <View style={{ backgroundColor: '#f2f2f2', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+            <Text style={{ color: '#666' }}>
+              Cerrado este día{daySchedule.fullDayClosedReason ? `: ${daySchedule.fullDayClosedReason}` : '.'}
+            </Text>
+          </View>
+        )}
+        {!loadingSlots &&
+          !daySchedule?.fullDayClosed &&
+          (daySchedule?.exceptionBlockedRanges ?? []).some((r) => r.reason) && (
+            <View style={{ backgroundColor: '#f2f2f2', borderRadius: 8, padding: 12, marginBottom: 12, gap: 2 }}>
+              {(daySchedule?.exceptionBlockedRanges ?? [])
+                .filter((r) => r.reason)
+                .map((r, i) => (
+                  <Text key={i} style={{ color: '#666', fontSize: 13 }}>
+                    De {formatTimeInZone(r.start, business.timezone)} a {formatTimeInZone(r.end, business.timezone)}:{' '}
+                    {r.reason}
+                  </Text>
+                ))}
+            </View>
+          )}
         {loadingSlots ? (
           <ActivityIndicator />
         ) : (

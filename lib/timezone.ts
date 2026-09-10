@@ -160,3 +160,10 @@ export function monthLabel(monthStr: string, locale = 'es-ES'): string {
   const anchor = new Date(Date.UTC(year, month - 1, 1));
   return new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(anchor);
 }
+
+// Nº de días de un mes de calendario. El día 0 del mes siguiente es el
+// último día del mes actual — truco estándar de Date, sin tabla de meses.
+export function daysInMonthStr(monthStr: string): number {
+  const [year, month] = monthStr.split('-').map(Number);
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
