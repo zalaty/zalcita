@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { todayDateStrInZone } from '@/lib/timezone';
 import type { AppointmentStatus } from '@/types/database';
 
 // Vocabulario de estado compartido entre calendario.tsx (lado negocio) y
@@ -79,6 +80,27 @@ export async function fetchAppointmentsInRange(
   }));
 
   return { data: merged, error: null };
+}
+
+// Agrupa citas por FECHA LOCAL del negocio (no UTC: una cita que empieza a
+// las 23:30 podría caer en otro día UTC) — usado por las vistas Semana/Mes
+// de calendario.tsx para repartir el resultado de UNA llamada a
+// fetchAppointmentsInRange entre los días visibles, en vez de volver a
+// pedir las citas día por día. todayDateStrInZone acepta cualquier instante,
+// no solo "ahora" (su parámetro `now` es un Date arbitrario), así que sirve
+// tal cual como conversor instante -> fecha civil.
+export function groupAppointmentsByDate(
+  appointments: AppointmentDetails[],
+  timeZone: string
+): Map<string, AppointmentDetails[]> {
+  const byDate = new Map<string, AppointmentDetails[]>();
+  for (const appointment of appointments) {
+    const dateStr = todayDateStrInZone(timeZone, new Date(appointment.start_time));
+    const list = byDate.get(dateStr) ?? [];
+    list.push(appointment);
+    byDate.set(dateStr, list);
+  }
+  return byDate;
 }
 
 export interface ClientHistoryAppointment {

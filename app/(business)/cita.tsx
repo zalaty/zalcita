@@ -102,9 +102,14 @@ function findOverlappingAppointments(
 export default function Cita() {
   const router = useRouter();
   const { business } = useBusiness();
-  const { appointment_id: appointmentId, date: dateParam } = useLocalSearchParams<{
+  const {
+    appointment_id: appointmentId,
+    date: dateParam,
+    time: timeParam,
+  } = useLocalSearchParams<{
     appointment_id?: string;
     date?: string;
+    time?: string;
   }>();
 
   const isEdit = !!appointmentId;
@@ -154,16 +159,20 @@ export default function Cita() {
 
   // Inicializa (o reinicializa) todo el estado del formulario cuando la
   // navegación cambia de verdad — no en cada re-render. La clave combina
-  // appointment_id (identifica sin ambigüedad una visita en modo mover) y
-  // date (identifica una visita en modo crear para un día concreto); si
-  // ninguno de los dos cambia respecto a la última vez, no se toca nada
-  // (así el usuario puede navegar de día con ‹/› sin que este efecto se lo
-  // pise). Si cambia, se resetea el formulario entero antes de recargar —
-  // sin esto, reabrir "Nueva cita" para OTRO día arrastraría cliente/
-  // servicio/fecha de la visita anterior.
+  // appointment_id (identifica sin ambigüedad una visita en modo mover),
+  // date (identifica una visita en modo crear para un día concreto) y time
+  // (para que tocar dos huecos libres distintos del MISMO día en la vista
+  // Semana del calendario sí dispare un reset, aunque appointment_id/date no
+  // cambien); si ninguno de los tres cambia respecto a la última vez, no se
+  // toca nada (así el usuario puede navegar de día con ‹/› sin que este
+  // efecto se lo pise). Si cambia, se resetea el formulario entero antes de
+  // recargar — sin esto, reabrir "Nueva cita" para OTRO día arrastraría
+  // cliente/servicio/fecha de la visita anterior. `time` es opcional y solo
+  // lo usa el modo crear (ver más abajo); las llamadas existentes nunca lo
+  // pasan, así que para ellas este cambio es un no-op.
   useEffect(() => {
     if (!business) return;
-    const currentKey = `${appointmentId ?? 'new'}:${dateParam ?? ''}`;
+    const currentKey = `${appointmentId ?? 'new'}:${dateParam ?? ''}:${timeParam ?? ''}`;
     if (resolvedForRef.current === currentKey) return;
     resolvedForRef.current = currentKey;
 
@@ -182,8 +191,11 @@ export default function Cita() {
     setSubmitError(null);
 
     if (!appointmentId) {
-      // Modo crear: fecha = la que traía calendario.tsx, o si no, hoy.
+      // Modo crear: fecha = la que traía calendario.tsx, o si no, hoy; hora
+      // = la que traiga la vista Semana del calendario (huecos libres), si
+      // no, en blanco (el dueño la elige de las horas guía o a mano).
       setSelectedDate(dateParam ?? todayDateStrInZone(business.timezone));
+      setManualTime(timeParam ?? '');
       setInitialLoading(false);
       return;
     }

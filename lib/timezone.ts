@@ -167,3 +167,18 @@ export function daysInMonthStr(monthStr: string): number {
   const [year, month] = monthStr.split('-').map(Number);
   return new Date(Date.UTC(year, month, 0)).getUTCDate();
 }
+
+// Rejilla de mes (huecos de alineación + fechas 'YYYY-MM-DD'), semana
+// empezando en lunes — geometría única compartida por el selector de fecha
+// de horarios.tsx (excepciones) y la vista Mes de calendario.tsx, para que
+// ambas rejillas queden siempre idénticas sin duplicar esta aritmética.
+export function monthGridCells(monthStr: string): (string | null)[] {
+  const firstOfMonth = `${monthStr}-01`;
+  const dow = dayOfWeekFromDateStr(firstOfMonth); // 0=domingo..6=sábado
+  const leadingBlank = dow === 0 ? 6 : dow - 1; // alinea con cabecera L-D
+  const total = daysInMonthStr(monthStr);
+  return [
+    ...Array(leadingBlank).fill(null),
+    ...Array.from({ length: total }, (_, i) => addDaysToDateStr(firstOfMonth, i)),
+  ];
+}

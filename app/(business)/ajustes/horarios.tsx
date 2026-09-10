@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 
 import { useFocusEffect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useBusiness } from '@/context/BusinessContext';
-import { addDaysToDateStr, addMonthsToMonthStr, daysInMonthStr, dayOfWeekFromDateStr, monthLabel, todayDateStrInZone } from '@/lib/timezone';
+import { addMonthsToMonthStr, monthGridCells, monthLabel, todayDateStrInZone } from '@/lib/timezone';
 import type { ScheduleException, WorkingHours } from '@/types/database';
 
 const inputStyle = { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12 };
@@ -111,15 +111,7 @@ function MonthCalendar({
   onSelect: (dateStr: string) => void;
 }) {
   const [viewMonth, setViewMonth] = useState(() => (selectedDate || minDate).slice(0, 7));
-
-  const firstOfMonth = `${viewMonth}-01`;
-  const dow = dayOfWeekFromDateStr(firstOfMonth); // 0=domingo..6=sábado
-  const leadingBlank = dow === 0 ? 6 : dow - 1; // alinea con la cabecera L-D
-  const total = daysInMonthStr(viewMonth);
-  const cells: (string | null)[] = [
-    ...Array(leadingBlank).fill(null),
-    ...Array.from({ length: total }, (_, i) => addDaysToDateStr(firstOfMonth, i)),
-  ];
+  const cells = monthGridCells(viewMonth);
 
   return (
     <View style={{ gap: 8 }}>
