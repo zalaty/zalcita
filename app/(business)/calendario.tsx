@@ -6,11 +6,15 @@ import { supabase } from '@/lib/supabase';
 import { useBusiness } from '@/context/BusinessContext';
 import {
   addDaysToDateStr,
+  addMonthsToMonthStr,
   currentMonthStrInZone,
   dayMonthLabel,
   formatLongDateInZone,
   formatTimeInZone,
   mondayOfWeek,
+  monthGridCells,
+  monthLabel,
+  monthRangeUtc,
   todayDateStrInZone,
   weekdayShortLabel,
   zonedTimeToUtc,
@@ -22,7 +26,13 @@ import {
   STATUS_LABELS,
   type AppointmentDetails,
 } from '@/lib/appointments';
-import { dayScheduleFromRange, fetchScheduleForRange, type RangeSchedule, type WorkingRange } from '@/lib/schedule';
+import {
+  dayScheduleFromRange,
+  fetchScheduleForRange,
+  type DaySchedule,
+  type RangeSchedule,
+  type WorkingRange,
+} from '@/lib/schedule';
 import { computeAvailableSlots, type Slot } from '@/lib/availability';
 import type { Appointment, AppointmentStatus, Business } from '@/types/database';
 
@@ -522,15 +532,286 @@ function CalendarioSemana({
   );
 }
 
-// Tanda 2: vista panorámica de mes (rejilla + indicador de ocupación por
-// día, reutilizando monthGridCells de lib/timezone.ts). De momento, aviso
-// para que el selector nunca lleve a una pantalla rota o en blanco.
-function CalendarioMes() {
+const WEEKDAY_HEADER = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+// En escritorio (mismo NARROW_BREAKPOINT que la vista Semana) cada celda
+// muestra hasta 3 citas en línea ("10:00 Ana") antes de un "+N más" — 3
+// líneas de 10px caben con margen dentro de WIDE_CELL_MIN_HEIGHT. En móvil
+// no se usa: la celda vuelve al comportamiento actual (solo número).
+const MAX_VISIBLE_APPOINTMENTS_WIDE = 3;
+const WIDE_CELL_MIN_HEIGHT = 92;
+
+type DayLoadStatus = 'closed' | 'free' | 'partial' | 'full';
+
+// Colores de apoyo, NUNCA la única señal: el número de citas (o "–" si
+// está cerrado) es lo que de verdad informa en cada celda; el fondo solo
+// da el vistazo panorámico. COLOR_CLOSED_BG es el mismo gris que ya usa la
+// vista Semana para "cerrado" — mismo lenguaje visual en todo el calendario.
+const DAY_STATUS_BG: Record<DayLoadStatus, string> = {
+  closed: COLOR_CLOSED_BG,
+  free: '#f0fdf4',
+  partial: '#fef9c3',
+  full: '#fee2e2',
+};
+const DAY_STATUS_LABEL: Record<DayLoadStatus, string> = {
+  closed: 'Cerrado',
+  free: 'Libre',
+  partial: 'Con huecos',
+  full: 'Completo',
+};
+
+// Mismo criterio que WeekDayColumn (computeAvailableSlots a 15 min, con
+// EARLY_EPOCH para no marcar "completo" un día pasado solo por estarlo) —
+// aquí solo se agrega a un estado panorámico por día en vez de pintar cada
+// hueco.
+function computeDayLoad(
+  dateStr: string,
+  timeZone: string,
+  daySchedule: DaySchedule,
+  dayAppointments: AppointmentDetails[]
+): { status: DayLoadStatus; activeCount: number } {
+  const activeAppointments = dayAppointments.filter((a) => a.status === 'pending' || a.status === 'confirmed');
+
+  if (daySchedule.fullDayClosed || daySchedule.workingRanges.length === 0) {
+    return { status: 'closed', activeCount: activeAppointments.length };
+  }
+
+  const slots = computeAvailableSlots({
+    dateStr,
+    timeZone,
+    workingRanges: daySchedule.workingRanges,
+    blockedRanges: [
+      ...daySchedule.exceptionBlockedRanges,
+      ...activeAppointments.map((a) => ({ start: new Date(a.start_time), end: new Date(a.end_time) })),
+    ],
+    durationMinutes: GRID_GRANULARITY_MINUTES,
+    now: EARLY_EPOCH,
+  });
+  const freeCount = slots.filter((s) => s.available).length;
+
+  if (freeCount === 0) return { status: 'full', activeCount: activeAppointments.length };
+  if (activeAppointments.length === 0) return { status: 'free', activeCount: 0 };
+  return { status: 'partial', activeCount: activeAppointments.length };
+}
+
+interface MonthCell {
+  dateStr: string;
+  inMonth: boolean;
+}
+
+// monthGridCells (lib/timezone.ts) solo rellena huecos de ALINEACIÓN al
+// principio (con null) para el selector de fecha de horarios.tsx, que no
+// necesita mostrar días de otro mes. La vista Mes del calendario sí — así
+// que aquí se completa esa rejilla con fechas reales de los meses vecino
+// (antes y después) hasta cerrar semanas completas, sin tocar la función
+// compartida ni su otro consumidor.
+function buildMonthCells(monthStr: string): MonthCell[] {
+  const rawCells = monthGridCells(monthStr);
+  let leadingCount = 0;
+  while (rawCells[leadingCount] === null) leadingCount++;
+  const realDates = rawCells.filter((c): c is string => c !== null);
+
+  const firstOfMonth = `${monthStr}-01`;
+  const lastOfMonth = realDates[realDates.length - 1];
+  const leadingDates = Array.from({ length: leadingCount }, (_, i) => addDaysToDateStr(firstOfMonth, i - leadingCount));
+
+  const totalSoFar = leadingCount + realDates.length;
+  const trailingCount = (7 - (totalSoFar % 7)) % 7;
+  const trailingDates = Array.from({ length: trailingCount }, (_, i) => addDaysToDateStr(lastOfMonth, i + 1));
+
+  return [
+    ...leadingDates.map((dateStr) => ({ dateStr, inMonth: false })),
+    ...realDates.map((dateStr) => ({ dateStr, inMonth: true })),
+    ...trailingDates.map((dateStr) => ({ dateStr, inMonth: false })),
+  ];
+}
+
+function CalendarioMes({
+  business,
+  monthStr,
+  setMonthStr,
+  onOpenDay,
+}: {
+  business: Business;
+  monthStr: string;
+  setMonthStr: Dispatch<SetStateAction<string>>;
+  onOpenDay: (dateStr: string) => void;
+}) {
+  // Mismo umbral que CalendarioSemana (NARROW_BREAKPOINT): en escritorio se
+  // listan citas dentro de la celda, en móvil no cabe y se cae al
+  // comportamiento actual (solo número + color).
+  const { width } = useWindowDimensions();
+  const isNarrow = width < NARROW_BREAKPOINT;
+
+  const [rangeSchedule, setRangeSchedule] = useState<RangeSchedule | null>(null);
+  const [appointments, setAppointments] = useState<AppointmentDetails[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Mismo patrón que CalendarioSemana: useCallback + useFocusEffect, un
+  // solo fetchScheduleForRange/fetchAppointmentsInRange para TODO el mes
+  // (no por día) y recarga al cambiar de mes o recuperar el foco.
+  const fetchMonth = useCallback(() => {
+    if (!business || !monthStr) return;
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    (async () => {
+      const nextMonthStr = addMonthsToMonthStr(monthStr, 1);
+      const monthStartDate = `${monthStr}-01`;
+      const monthEndDateExclusive = `${nextMonthStr}-01`;
+      const { startUtc, endUtc } = monthRangeUtc(monthStr, business.timezone);
+
+      const [scheduleRes, appointmentsRes] = await Promise.all([
+        fetchScheduleForRange(business.id, monthStartDate, monthEndDateExclusive),
+        fetchAppointmentsInRange(business.id, startUtc, endUtc),
+      ]);
+
+      if (cancelled) return;
+      if (scheduleRes.error || appointmentsRes.error) {
+        setError('No se pudo cargar el resumen del mes.');
+        setLoading(false);
+        return;
+      }
+      setRangeSchedule(scheduleRes.data);
+      setAppointments(appointmentsRes.data ?? []);
+      setLoading(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [business, monthStr]);
+
+  useFocusEffect(fetchMonth);
+
+  const today = todayDateStrInZone(business.timezone);
+  const currentMonthStr = currentMonthStrInZone(business.timezone);
+  const cells = buildMonthCells(monthStr);
+  const effectiveSchedule: RangeSchedule = rangeSchedule ?? { workingHoursByDay: new Map(), exceptionsByDate: new Map() };
+  const apptsByDate = appointments
+    ? groupAppointmentsByDate(appointments, business.timezone)
+    : new Map<string, AppointmentDetails[]>();
+
   return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <Text style={{ color: '#666', textAlign: 'center' }}>
-        Vista mensual — próximamente.
-      </Text>
+    <View style={{ flex: 1 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderColor: '#eee' }}>
+        <Pressable onPress={() => setMonthStr((m) => addMonthsToMonthStr(m, -1))} style={{ padding: 8 }}>
+          <Text style={{ fontSize: 18 }}>‹</Text>
+        </Pressable>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={{ fontSize: 14, fontWeight: '600', textTransform: 'capitalize' }}>{monthLabel(monthStr)}</Text>
+          {monthStr !== currentMonthStr && (
+            <Pressable onPress={() => setMonthStr(currentMonthStr)} style={{ marginTop: 4 }}>
+              <Text style={{ fontSize: 12, color: '#1d4ed8' }}>Ir a este mes</Text>
+            </Pressable>
+          )}
+        </View>
+        <Pressable onPress={() => setMonthStr((m) => addMonthsToMonthStr(m, 1))} style={{ padding: 8 }}>
+          <Text style={{ fontSize: 18 }}>›</Text>
+        </Pressable>
+      </View>
+
+      {loading && !rangeSchedule ? (
+        <ActivityIndicator style={{ marginTop: 24 }} />
+      ) : error ? (
+        <Text style={{ color: 'crimson', padding: 16 }}>{error}</Text>
+      ) : (
+        <ScrollView contentContainerStyle={{ padding: 16 }}>
+          <View style={{ flexDirection: 'row' }}>
+            {WEEKDAY_HEADER.map((d, i) => (
+              <Text key={i} style={{ width: `${100 / 7}%`, textAlign: 'center', fontSize: 11, color: '#666', fontWeight: '600' }}>
+                {d}
+              </Text>
+            ))}
+          </View>
+
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+            {cells.map(({ dateStr, inMonth }) => {
+              const cellWrapperStyle = isNarrow
+                ? { width: `${100 / 7}%` as const, aspectRatio: 1, padding: 2 }
+                : { width: `${100 / 7}%` as const, minHeight: WIDE_CELL_MIN_HEIGHT, padding: 2 };
+
+              if (!inMonth) {
+                return (
+                  <Pressable key={dateStr} onPress={() => onOpenDay(dateStr)} style={cellWrapperStyle}>
+                    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', opacity: 0.35 }}>
+                      <Text style={{ fontSize: 12, color: '#999' }}>{Number(dateStr.slice(8, 10))}</Text>
+                    </View>
+                  </Pressable>
+                );
+              }
+
+              const daySchedule = dayScheduleFromRange(effectiveSchedule, dateStr, business.timezone);
+              const dayAppointments = apptsByDate.get(dateStr) ?? [];
+              const { status, activeCount } = computeDayLoad(dateStr, business.timezone, daySchedule, dayAppointments);
+              const isPast = dateStr < today;
+              const isToday = dateStr === today;
+
+              // Solo para el listado de escritorio — no toca el cálculo de
+              // "carga" (computeDayLoad, sin cambios): vuelve a filtrar las
+              // mismas citas activas del día para mostrarlas ordenadas por
+              // hora, cortando a MAX_VISIBLE_APPOINTMENTS_WIDE.
+              const previewAppointments = isNarrow
+                ? []
+                : dayAppointments
+                    .filter((a) => a.status === 'pending' || a.status === 'confirmed')
+                    .sort((a, b) => a.start_time.localeCompare(b.start_time))
+                    .slice(0, MAX_VISIBLE_APPOINTMENTS_WIDE);
+              const hiddenCount = Math.max(0, activeCount - previewAppointments.length);
+
+              return (
+                <View key={dateStr} style={cellWrapperStyle}>
+                  <Pressable
+                    onPress={() => onOpenDay(dateStr)}
+                    style={{
+                      flex: 1,
+                      borderRadius: 6,
+                      backgroundColor: DAY_STATUS_BG[status],
+                      borderWidth: isToday ? 2 : 0,
+                      borderColor: '#111',
+                      padding: 4,
+                      opacity: isPast ? 0.55 : 1,
+                    }}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: '#111' }}>{Number(dateStr.slice(8, 10))}</Text>
+                    {status === 'closed' ? (
+                      <Text style={{ fontSize: 11, color: '#666' }}>–</Text>
+                    ) : isNarrow ? (
+                      activeCount > 0 && <Text style={{ fontSize: 11, fontWeight: '600', color: '#111' }}>{activeCount}</Text>
+                    ) : (
+                      <View style={{ marginTop: 2, gap: 1 }}>
+                        {previewAppointments.map((a) => (
+                          <Text
+                            key={a.id}
+                            numberOfLines={1}
+                            ellipsizeMode="tail"
+                            style={{ fontSize: 10, color: '#111' }}
+                          >
+                            {formatTimeInZone(new Date(a.start_time), business.timezone)} {a.clientName}
+                          </Text>
+                        ))}
+                        {hiddenCount > 0 && (
+                          <Text style={{ fontSize: 10, fontWeight: '600', color: '#666' }}>+{hiddenCount} más</Text>
+                        )}
+                      </View>
+                    )}
+                  </Pressable>
+                </View>
+              );
+            })}
+          </View>
+
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 16 }}>
+            {(Object.keys(DAY_STATUS_BG) as DayLoadStatus[]).map((status) => (
+              <View key={status} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <View style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: DAY_STATUS_BG[status] }} />
+                <Text style={{ fontSize: 12, color: '#666' }}>{DAY_STATUS_LABEL[status]}</Text>
+              </View>
+            ))}
+          </View>
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -852,7 +1133,9 @@ export default function Calendario() {
           onNewAppointment={newAppointment}
         />
       )}
-      {view === 'month' && <CalendarioMes />}
+      {view === 'month' && (
+        <CalendarioMes business={business} monthStr={monthStr} setMonthStr={setMonthStr} onOpenDay={goToDay} />
+      )}
     </View>
   );
 }
