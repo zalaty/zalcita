@@ -50,14 +50,14 @@ import type { AppointmentStatus } from '@/types/database';
 //
 //   Token(es)                    Fondo real de uso          Ratio    Resultado
 //   ---------------------------  -------------------------  -------  ---------
-//   textPrimary                  background / surface       16.74:1 / 17.49:1  PASA
-//   textSecondary                background / surface        7.30:1 /  7.63:1  PASA
-//   textMuted                    background / surface        4.59:1 /  4.80:1  PASA
-//   success                      background / surface        6.83:1 /  7.13:1  PASA
-//   warning                      background / surface        4.71:1 /  4.92:1  PASA
-//   danger                       background / surface        6.19:1 /  6.47:1  PASA
-//   info                         background / surface        6.42:1 /  6.70:1  PASA
-//   primary (link / secondary)   background / surface        5.24:1 /  5.47:1  PASA
+//   textPrimary                  background / surface       16.46:1 / 17.49:1  PASA
+//   textSecondary                background / surface        7.18:1 /  7.63:1  PASA
+//   textMuted                    background / surface        4.51:1 /  4.80:1  PASA (el más ajustado — ver nota jerarquía de superficies)
+//   success                      background / surface        6.71:1 /  7.13:1  PASA
+//   warning                      background / surface        4.63:1 /  4.92:1  PASA
+//   danger                       background / surface        6.09:1 /  6.47:1  PASA
+//   info                         background / surface        6.31:1 /  6.70:1  PASA
+//   primary (link / secondary)   background / surface        5.15:1 /  5.47:1  PASA
 //   borderStrong (Input, no-texto, >=3:1)   surface           4.80:1           PASA
 //   primary (foco Input, no-texto, >=3:1)   surface           5.47:1           PASA
 //   primary                      primarySurface (Badge)       5.25:1           PASA
@@ -79,6 +79,21 @@ import type { AppointmentStatus } from '@/types/database';
 // cambia, hay que volver a pasar esta tabla (el método está documentado
 // en el historial de esta sesión / theme-preview) antes de darlo por
 // bueno otra vez.
+//
+// JERARQUÍA DE SUPERFICIES (background vs surface): `background` se
+// oscureció de #fafaf9 a #f8f8f7 para que las superficies (tarjetas,
+// huecos, inputs) se distingan del fondo de página sin usar color de
+// estado — técnica "Notion/Linear": diferencia de superficie + elevación
+// (shadows.sm), no un color de fondo llamativo. #f8f8f7 es, calculado por
+// barrido, el fondo MÁS OSCURO posible dentro de la misma familia de gris
+// cálido que mantiene TODOS los tokens de arriba en >= 4.5:1 — el límite
+// real es `textMuted` (4.51:1, el más ajustado de la tabla). Ir más oscuro
+// bajaría textMuted (y luego warning) por debajo de AA, así que la
+// separación de color por sí sola es deliberadamente modesta (1.04:1 ->
+// 1.06:1 de contraste fondo/superficie); el resto de la jerarquía visual
+// la pone la sombra, aplicada a los elementos tocables (ver
+// components/ui/Card.tsx, que ya incluye shadows.sm, y cualquier "hueco"
+// tocable que no use Card, p.ej. las franjas libres de disponibilidad.tsx).
 
 export interface ColorTokens {
   // Marca — `primary` lleva texto encima (5.47:1 sobre surface, 5.24:1
@@ -123,39 +138,42 @@ export interface ColorTokens {
 // (appointmentStatusColors) referencien estos mismos valores en vez de
 // repetir los hex, para que nunca puedan desincronizarse.
 const base: ColorTokens = {
-  primary: '#0f766e', // 5.47:1 vs surface, 5.24:1 vs background — ver tabla WCAG 1.4.3
+  primary: '#0f766e', // 5.47:1 vs surface, 5.15:1 vs background — ver tabla WCAG 1.4.3
   primaryHover: '#115e59',
   primaryPressed: '#134e4a', // 9.48:1 con textOnPrimary encima (Button primary, pressed)
   primaryVivid: '#14b8a6',
   primarySurface: '#f0fdfa', // fondo de Badge tone=primary; 5.25:1 con `primary` encima
   primaryDisabled: '#99f6e4',
 
-  background: '#fafaf9',
+  // El más oscuro posible dentro de esta familia de gris cálido que
+  // mantiene toda la tabla de arriba en AA (textMuted es el límite, a
+  // 4.51:1) — ver nota "JERARQUÍA DE SUPERFICIES". Antes #fafaf9.
+  background: '#f8f8f7',
   surface: '#ffffff',
   border: '#e7e5e4',
   borderStrong: '#78716c', // 4.80:1 vs surface — supera el 3:1 exigido a un borde de Input
-  textPrimary: '#1c1917', // 16.74:1 / 17.49:1 (background/surface)
-  textSecondary: '#57534e', // 7.30:1 / 7.63:1 (background/surface); 6.08:1 sobre disabledBg (Badge neutral)
-  textMuted: '#78716c', // 4.59:1 / 4.80:1 (background/surface)
+  textPrimary: '#1c1917', // 16.46:1 / 17.49:1 (background/surface)
+  textSecondary: '#57534e', // 7.18:1 / 7.63:1 (background/surface); 6.08:1 sobre disabledBg (Badge neutral)
+  textMuted: '#78716c', // 4.51:1 / 4.80:1 (background/surface) — el ratio más ajustado del sistema
   textOnPrimary: '#ffffff', // 5.47:1 sobre `primary`, 9.48:1 sobre `primaryPressed`, 6.47:1 sobre `danger`
   disabledBg: '#e7e5e4',
   disabledText: '#a8a29e', // 2.01:1 vs disabledBg — exento de AA (componente inactivo, WCAG 1.4.3)
 
-  // 7.13:1 vs surface, 6.83:1 vs background, 6.81:1 vs successSurface (Badge).
+  // 7.13:1 vs surface, 6.71:1 vs background, 6.81:1 vs successSurface (Badge).
   // Antes #15803d (5.01:1) — más oscuro, más separado de `danger` bajo
   // simulación de daltonismo (ver AJUSTE PARA DÉFICIT ROJO-VERDE arriba).
   success: '#166534',
   successSurface: '#f0fdf4',
-  // 4.92:1 vs surface, 4.71:1 vs background, 4.75:1 vs warningSurface (Badge).
+  // 4.92:1 vs surface, 4.63:1 vs background, 4.75:1 vs warningSurface (Badge).
   // Antes #b45309 (5.02:1) — más dorado/amarillo, menos anaranjado (idem).
   warning: '#a16207',
   warningSurface: '#fffbeb',
-  // 6.47:1 vs surface, 6.19:1 vs background, 5.91:1 vs dangerSurface (Badge).
+  // 6.47:1 vs surface, 6.09:1 vs background, 5.91:1 vs dangerSurface (Badge).
   // Sin cambios: oscurecerlo empeoraba la separación con `success` bajo
   // simulación de daltonismo (comprobado, no a ojo — ver /theme-preview).
   danger: '#b91c1c',
   dangerSurface: '#fef2f2',
-  info: '#1d4ed8', // 6.70:1 vs surface, 6.42:1 vs background, 6.16:1 vs infoSurface (Badge)
+  info: '#1d4ed8', // 6.70:1 vs surface, 6.31:1 vs background, 6.16:1 vs infoSurface (Badge)
   infoSurface: '#eff6ff',
 };
 

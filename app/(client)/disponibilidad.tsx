@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
+import { theme } from '@/theme';
+import { Badge, Card } from '@/components/ui';
 import { computeAvailableSlots, type Slot, type TimeRange } from '@/lib/availability';
 import { fetchDaySchedule, type DaySchedule } from '@/lib/schedule';
 import {
@@ -28,12 +30,21 @@ interface ServiceInfo {
   price: number;
 }
 
+// Ancho máximo del contenido en pantalla ancha (~600-720px): en escritorio
+// el contenido queda centrado en vez de estirarse de lado a lado; en móvil
+// (por debajo de este ancho) ocupa el 100% igual que antes — no hace falta
+// lógica de breakpoint para esto en concreto, `maxWidth` + `alignSelf:
+// 'center'` ya se encargan solos y de paso acotan cualquier botón interno.
+const CONTENT_MAX_WIDTH = 680;
+
 export default function Disponibilidad() {
   const router = useRouter();
   const { slug, service_id: serviceId } = useLocalSearchParams<{
     slug?: string;
     service_id?: string;
   }>();
+  const { width } = useWindowDimensions();
+  const isNarrow = width < theme.breakpoints.narrow;
 
   const [business, setBusiness] = useState<BusinessInfo | null>(null);
   const [service, setService] = useState<ServiceInfo | null>(null);
@@ -182,16 +193,28 @@ export default function Disponibilidad() {
 
   if (!slug || !serviceId) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        <Text>Elige antes un servicio para ver su disponibilidad.</Text>
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: theme.spacing.xl,
+          backgroundColor: theme.colors.background,
+        }}
+      >
+        <Text style={{ ...theme.textStyles.body, color: theme.colors.textSecondary, textAlign: 'center' }}>
+          Elige antes un servicio para ver su disponibilidad.
+        </Text>
       </View>
     );
   }
 
   if (loadingBusiness || !business || !service || !weekStart) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator />
+      <View
+        style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}
+      >
+        <ActivityIndicator color={theme.colors.primary} />
       </View>
     );
   }
@@ -199,145 +222,250 @@ export default function Disponibilidad() {
   const currentWeekStart = mondayOfWeek(todayStr);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDaysToDateStr(weekStart, i));
 
+  const avatarSize = isNarrow ? 40 : 56;
+  const businessInitial = business.name.trim().charAt(0).toUpperCase() || '?';
+
   return (
-    <View style={{ flex: 1 }}>
-      <View style={{ padding: 16, borderBottomWidth: 1, borderColor: '#eee' }}>
-        <Text style={{ fontSize: 16, fontWeight: '600' }}>{service.name}</Text>
-        <Text style={{ fontSize: 13, color: '#666' }}>
-          {service.duration_minutes} min · {service.price} €
-        </Text>
-      </View>
-
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 12 }}>
-        <Pressable
-          onPress={() => setWeekStart((w) => (addDaysToDateStr(w, -7) < currentWeekStart ? currentWeekStart : addDaysToDateStr(w, -7)))}
-          disabled={weekStart <= currentWeekStart}
-          style={{ padding: 8, opacity: weekStart <= currentWeekStart ? 0.3 : 1 }}
-        >
-          <Text style={{ fontSize: 18 }}>‹</Text>
-        </Pressable>
-        <Text style={{ flex: 1, textAlign: 'center', fontSize: 13, color: '#666' }}>
-          {dayMonthLabel(weekDays[0])} – {dayMonthLabel(weekDays[6])}
-        </Text>
-        <Pressable onPress={() => setWeekStart((w) => addDaysToDateStr(w, 7))} style={{ padding: 8 }}>
-          <Text style={{ fontSize: 18 }}>›</Text>
-        </Pressable>
-      </View>
-
-      <View style={{ flexDirection: 'row', paddingHorizontal: 8, paddingVertical: 12 }}>
-        {weekDays.map((dateStr) => {
-          const disabled = dateStr < todayStr;
-          const selected = dateStr === selectedDate;
-          return (
-            <Pressable
-              key={dateStr}
-              disabled={disabled}
-              onPress={() => setSelectedDate(dateStr)}
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: theme.spacing.lg, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' }}
+      >
+        {/* Tarjeta contenedora: agrupa cabecera + navegación + huecos como
+            una sola unidad ("el panel de reserva de este negocio") en vez
+            de piezas sueltas sobre el fondo — mismo patrón a reutilizar en
+            el resto de pantallas del cliente. Card ya trae de fábrica
+            surface/radii.lg/shadows.sm/padding lg, así que las secciones de
+            dentro solo aportan su ritmo vertical interno, no repiten el
+            padding exterior. */}
+        <Card>
+          <View style={{ borderBottomWidth: 1, borderColor: theme.colors.border }}>
+            {/* Identidad del negocio: nombre destacado en color de marca +
+                hueco reservado para su logo (avatar con la inicial, por
+                ahora). Sustituir por <Image source={{ uri: business.logo_url }} />
+                cuando exista la subida de logo — el círculo ya tiene el
+                tamaño/posición pensados para admitir una imagen ahí mismo. */}
+            <View
               style={{
-                flex: 1,
-                marginHorizontal: 2,
-                paddingVertical: 8,
-                borderRadius: 8,
+                flexDirection: 'row',
                 alignItems: 'center',
-                backgroundColor: selected ? '#111' : 'transparent',
-                opacity: disabled ? 0.3 : 1,
+                gap: theme.spacing.md,
               }}
             >
-              <Text style={{ fontSize: 11, color: selected ? '#fff' : '#666' }}>
-                {weekdayShortLabel(dateStr)}
-              </Text>
-              <Text style={{ fontSize: 15, fontWeight: '600', color: selected ? '#fff' : '#111' }}>
-                {Number(dateStr.slice(8, 10))}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      <View style={{ flex: 1, padding: 16 }}>
-        {!loadingSlots && daySchedule?.fullDayClosed && (
-          <View style={{ backgroundColor: '#f2f2f2', borderRadius: 8, padding: 12, marginBottom: 12 }}>
-            <Text style={{ color: '#666' }}>
-              Cerrado este día{daySchedule.fullDayClosedReason ? `: ${daySchedule.fullDayClosedReason}` : '.'}
-            </Text>
-          </View>
-        )}
-        {!loadingSlots &&
-          !daySchedule?.fullDayClosed &&
-          (daySchedule?.exceptionBlockedRanges ?? []).some((r) => r.reason) && (
-            <View style={{ backgroundColor: '#f2f2f2', borderRadius: 8, padding: 12, marginBottom: 12, gap: 2 }}>
-              {(daySchedule?.exceptionBlockedRanges ?? [])
-                .filter((r) => r.reason)
-                .map((r, i) => (
-                  <Text key={i} style={{ color: '#666', fontSize: 13 }}>
-                    De {formatTimeInZone(r.start, business.timezone)} a {formatTimeInZone(r.end, business.timezone)}:{' '}
-                    {r.reason}
-                  </Text>
-                ))}
-            </View>
-          )}
-        {loadingSlots ? (
-          <ActivityIndicator />
-        ) : (
-          <FlatList
-            data={slots ?? []}
-            keyExtractor={(item) => item.start.toISOString()}
-            numColumns={3}
-            columnWrapperStyle={{ gap: 8 }}
-            contentContainerStyle={{ gap: 8 }}
-            renderItem={({ item }) => {
-              const time = formatTimeInZone(item.start, business.timezone);
-
-              if (!item.available) {
-                // Ocupada: se muestra (nunca se oculta) pero claramente no
-                // pulsable — tachado + etiqueta "Ocupado" + borde
-                // discontinuo, para que no dependa solo del gris (accesible
-                // también para quien no distinga bien el color). Nunca se
-                // muestra qué cita la ocupa: solo llegan start/end del
-                // negocio (ver query de `appointments` más arriba).
-                return (
-                  <View
-                    accessible
-                    accessibilityLabel={`${time}, hora no disponible`}
-                    style={{
-                      flex: 1,
-                      paddingVertical: 12,
-                      borderRadius: 8,
-                      borderWidth: 1,
-                      borderStyle: 'dashed',
-                      borderColor: '#ccc',
-                      backgroundColor: '#f2f2f2',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <Text style={{ color: '#999', textDecorationLine: 'line-through' }}>{time}</Text>
-                    <Text style={{ color: '#999', fontSize: 10, fontWeight: '600' }}>Ocupado</Text>
-                  </View>
-                );
-              }
-
-              return (
-                <Pressable
-                  onPress={() => handleSelectSlot(item)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Reservar a las ${time}`}
+              <View
+                style={{
+                  width: avatarSize,
+                  height: avatarSize,
+                  borderRadius: avatarSize / 2,
+                  backgroundColor: theme.colors.primary,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <Text
                   style={{
-                    flex: 1,
-                    paddingVertical: 12,
-                    borderRadius: 8,
-                    borderWidth: 1,
-                    borderColor: '#ddd',
-                    alignItems: 'center',
+                    color: theme.colors.textOnPrimary,
+                    fontWeight: theme.fontWeights.bold,
+                    fontSize: avatarSize * 0.4,
                   }}
                 >
-                  <Text>{time}</Text>
+                  {businessInitial}
+                </Text>
+              </View>
+              <Text
+                numberOfLines={2}
+                style={{
+                  ...(isNarrow ? theme.textStyles.heading2 : theme.textStyles.heading1),
+                  color: theme.colors.primary,
+                  flexShrink: 1,
+                }}
+              >
+                {business.name}
+              </Text>
+            </View>
+
+            {/* Más aire entre el nombre del negocio y el del servicio (antes
+                spacing.sm, competían visualmente) — el resto de la tarjeta
+                no repite padding horizontal, ya lo da Card. */}
+            <View style={{ paddingTop: theme.spacing.lg, paddingBottom: theme.spacing.lg }}>
+              <Text style={{ ...theme.textStyles.heading2, color: theme.colors.textPrimary }}>{service.name}</Text>
+              <Text style={{ ...theme.textStyles.small, color: theme.colors.textSecondary, marginTop: theme.spacing.xs }}>
+                {service.duration_minutes} min · {service.price} €
+              </Text>
+            </View>
+          </View>
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingTop: theme.spacing.md }}>
+            <Pressable
+              onPress={() => setWeekStart((w) => (addDaysToDateStr(w, -7) < currentWeekStart ? currentWeekStart : addDaysToDateStr(w, -7)))}
+              disabled={weekStart <= currentWeekStart}
+              style={{ padding: theme.spacing.sm, opacity: weekStart <= currentWeekStart ? 0.3 : 1 }}
+            >
+              <Text style={{ fontSize: theme.fontSizes.lg, color: theme.colors.textPrimary }}>‹</Text>
+            </Pressable>
+            <Text style={{ flex: 1, textAlign: 'center', ...theme.textStyles.small, color: theme.colors.textSecondary }}>
+              {dayMonthLabel(weekDays[0])} – {dayMonthLabel(weekDays[6])}
+            </Text>
+            <Pressable onPress={() => setWeekStart((w) => addDaysToDateStr(w, 7))} style={{ padding: theme.spacing.sm }}>
+              <Text style={{ fontSize: theme.fontSizes.lg, color: theme.colors.textPrimary }}>›</Text>
+            </Pressable>
+          </View>
+
+          <View style={{ flexDirection: 'row', paddingVertical: theme.spacing.md }}>
+            {weekDays.map((dateStr) => {
+              const disabled = dateStr < todayStr;
+              const selected = dateStr === selectedDate;
+              return (
+                <Pressable
+                  key={dateStr}
+                  disabled={disabled}
+                  onPress={() => setSelectedDate(dateStr)}
+                  style={{
+                    flex: 1,
+                    marginHorizontal: 2,
+                    paddingVertical: theme.spacing.sm,
+                    borderRadius: theme.radii.md,
+                    alignItems: 'center',
+                    backgroundColor: selected ? theme.colors.primary : 'transparent',
+                    opacity: disabled ? 0.3 : 1,
+                  }}
+                >
+                  <Text style={{ fontSize: theme.fontSizes.xs, color: selected ? theme.colors.textOnPrimary : theme.colors.textSecondary }}>
+                    {weekdayShortLabel(dateStr)}
+                  </Text>
+                  <Text
+                    style={{
+                      ...theme.textStyles.bodyMedium,
+                      color: selected ? theme.colors.textOnPrimary : theme.colors.textPrimary,
+                    }}
+                  >
+                    {Number(dateStr.slice(8, 10))}
+                  </Text>
                 </Pressable>
               );
-            }}
-            ListEmptyComponent={<Text>No hay horas disponibles este día.</Text>}
-          />
-        )}
-      </View>
+            })}
+          </View>
+
+          <View style={{ marginTop: theme.spacing.xs }}>
+            {!loadingSlots && daySchedule?.fullDayClosed && (
+              <View
+                style={{
+                  backgroundColor: theme.colors.disabledBg,
+                  borderRadius: theme.radii.md,
+                  padding: theme.spacing.md,
+                  marginBottom: theme.spacing.md,
+                }}
+              >
+                <Text style={{ ...theme.textStyles.body, color: theme.colors.textSecondary }}>
+                  Cerrado este día{daySchedule.fullDayClosedReason ? `: ${daySchedule.fullDayClosedReason}` : '.'}
+                </Text>
+              </View>
+            )}
+            {!loadingSlots &&
+              !daySchedule?.fullDayClosed &&
+              (daySchedule?.exceptionBlockedRanges ?? []).some((r) => r.reason) && (
+                <View
+                  style={{
+                    backgroundColor: theme.colors.disabledBg,
+                    borderRadius: theme.radii.md,
+                    padding: theme.spacing.md,
+                    marginBottom: theme.spacing.md,
+                    gap: 2,
+                  }}
+                >
+                  {(daySchedule?.exceptionBlockedRanges ?? [])
+                    .filter((r) => r.reason)
+                    .map((r, i) => (
+                      <Text key={i} style={{ ...theme.textStyles.small, color: theme.colors.textSecondary }}>
+                        De {formatTimeInZone(r.start, business.timezone)} a {formatTimeInZone(r.end, business.timezone)}:{' '}
+                        {r.reason}
+                      </Text>
+                    ))}
+                </View>
+              )}
+            {loadingSlots ? (
+              <ActivityIndicator color={theme.colors.primary} />
+            ) : (
+              <FlatList
+                data={slots ?? []}
+                keyExtractor={(item) => item.start.toISOString()}
+                numColumns={3}
+                scrollEnabled={false}
+                columnWrapperStyle={{ gap: theme.spacing.sm }}
+                contentContainerStyle={{ gap: theme.spacing.sm }}
+                renderItem={({ item }) => {
+                  const time = formatTimeInZone(item.start, business.timezone);
+
+                  if (!item.available) {
+                    // Ocupada: se muestra (nunca se oculta) pero claramente no
+                    // pulsable — tachado + Badge "Ocupado" (color + texto, nunca
+                    // solo color) + borde discontinuo. Nunca se muestra qué cita
+                    // la ocupa: solo llegan start/end del negocio (ver query de
+                    // `appointments` más arriba). Misma altura compacta que el
+                    // hueco libre (paddingVertical.sm) para que la rejilla de 3
+                    // columnas quede alineada aunque se mezclen libres/ocupados.
+                    return (
+                      <View
+                        accessible
+                        accessibilityLabel={`${time}, hora no disponible`}
+                        style={{
+                          flex: 1,
+                          paddingVertical: theme.spacing.sm,
+                          borderRadius: theme.radii.md,
+                          borderWidth: 1,
+                          borderStyle: 'dashed',
+                          borderColor: theme.colors.border,
+                          backgroundColor: theme.colors.disabledBg,
+                          alignItems: 'center',
+                          gap: theme.spacing.xs,
+                        }}
+                      >
+                        <Text style={{ color: theme.colors.disabledText, textDecorationLine: 'line-through' }}>
+                          {time}
+                        </Text>
+                        <Badge label="Ocupado" tone="neutral" />
+                      </View>
+                    );
+                  }
+
+                  return (
+                    <Pressable
+                      onPress={() => handleSelectSlot(item)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Reservar a las ${time}`}
+                      style={{
+                        flex: 1,
+                        // Compacto tipo "chip de hora" (antes spacing.md,
+                        // quedaba demasiado alto para una sola línea de texto).
+                        paddingVertical: theme.spacing.sm,
+                        borderRadius: theme.radii.md,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border,
+                        // Superficie propia (blanca, igual que la Card que lo
+                        // envuelve) + borde + sombra: las tres señales juntas
+                        // son las que lo definen como caja tocable nítida —
+                        // solo sombra sobre una Card ya blanca no bastaba
+                        // (mismo color de fondo que su contenedor).
+                        backgroundColor: theme.colors.surface,
+                        ...theme.shadows.sm,
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text style={{ color: theme.colors.textPrimary }}>{time}</Text>
+                    </Pressable>
+                  );
+                }}
+                ListEmptyComponent={
+                  <Text style={{ ...theme.textStyles.body, color: theme.colors.textSecondary }}>
+                    No hay horas disponibles este día.
+                  </Text>
+                }
+              />
+            )}
+          </View>
+        </Card>
+      </ScrollView>
     </View>
   );
 }

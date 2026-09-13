@@ -1,16 +1,29 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
-import { fetchClientAppointments, STATUS_COLORS, STATUS_LABELS, type ClientAppointmentDetails } from '@/lib/appointments';
+import { theme } from '@/theme';
+import { Badge, Button, Card, type BadgeTone } from '@/components/ui';
+import { fetchClientAppointments, STATUS_LABELS, type ClientAppointmentDetails } from '@/lib/appointments';
 import { formatLongDateInZone, formatTimeInZone } from '@/lib/timezone';
+import type { AppointmentStatus } from '@/types/database';
 
-const buttonStyle = { backgroundColor: '#111', padding: 14, borderRadius: 8 };
-const buttonTextStyle = { color: '#fff', textAlign: 'center' as const, fontWeight: '600' as const };
-const cardStyle = { padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#eee', gap: 6 };
-const sectionTitleStyle = { fontSize: 16, fontWeight: '700' as const };
-const warningBoxStyle = { backgroundColor: '#fff3cd', borderWidth: 1, borderColor: '#ffe69c', borderRadius: 8, padding: 10, gap: 6 };
+// Mapeo estado de cita -> tono de Badge, LOCAL a esta pantalla a propósito
+// (fase 2 del rediseño solo toca el lado cliente). Es el mismo reparto que
+// appointmentStatusColors en theme/colors.ts (pending=warning,
+// confirmed=success, completed=info, cancelled=neutral, no_show=danger).
+// TODO cuando se rediseñe el calendario del negocio (lib/appointments.ts
+// STATUS_COLORS/STATUS_LABELS, calendario.tsx): unificar este mapeo en un
+// solo sitio compartido — dos mapeos separados que hoy coinciden podrían
+// divergir con el tiempo si alguien cambia solo uno de los dos.
+const STATUS_BADGE_TONES: Record<AppointmentStatus, BadgeTone> = {
+  pending: 'warning',
+  confirmed: 'success',
+  completed: 'info',
+  cancelled: 'neutral',
+  no_show: 'danger',
+};
 
 function isUpcoming(a: ClientAppointmentDetails): boolean {
   return (a.status === 'pending' || a.status === 'confirmed') && new Date(a.end_time) > new Date();
@@ -83,27 +96,40 @@ export default function MisCitas() {
 
   if (authLoading) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator />
+      <View
+        style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}
+      >
+        <ActivityIndicator color={theme.colors.primary} />
       </View>
     );
   }
 
   if (!session) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 }}>
-        <Text style={{ textAlign: 'center' }}>Inicia sesión para ver tus citas.</Text>
-        <Pressable onPress={() => router.push('/(auth)/login')} style={buttonStyle}>
-          <Text style={buttonTextStyle}>Iniciar sesión</Text>
-        </Pressable>
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: theme.spacing.xl,
+          gap: theme.spacing.lg,
+          backgroundColor: theme.colors.background,
+        }}
+      >
+        <Text style={{ ...theme.textStyles.body, color: theme.colors.textPrimary, textAlign: 'center' }}>
+          Inicia sesión para ver tus citas.
+        </Text>
+        <Button label="Iniciar sesión" onPress={() => router.push('/(auth)/login')} />
       </View>
     );
   }
 
   if (loading && !appointments) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator />
+      <View
+        style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}
+      >
+        <ActivityIndicator color={theme.colors.primary} />
       </View>
     );
   }
@@ -117,82 +143,91 @@ export default function MisCitas() {
     const withinNotice = hoursUntilStart(a) >= a.minHoursNotice;
 
     return (
-      <View key={a.id} style={cardStyle}>
-        <Text style={{ fontSize: 15, fontWeight: '600' }}>{a.businessName}</Text>
-        <Text style={{ fontSize: 14 }}>{a.serviceName}</Text>
-        <Text style={{ fontSize: 13, color: '#666' }}>
+      <Card key={a.id} style={{ gap: theme.spacing.xs }}>
+        <Text style={{ ...theme.textStyles.bodyMedium, color: theme.colors.textPrimary }}>{a.businessName}</Text>
+        <Text style={{ ...theme.textStyles.body, color: theme.colors.textPrimary }}>{a.serviceName}</Text>
+        <Text style={{ ...theme.textStyles.small, color: theme.colors.textSecondary }}>
           {formatLongDateInZone(new Date(a.start_time), a.businessTimezone)} ·{' '}
           {formatTimeInZone(new Date(a.start_time), a.businessTimezone)}–
           {formatTimeInZone(new Date(a.end_time), a.businessTimezone)}
         </Text>
-        <Text style={{ fontSize: 12, fontWeight: '600', color: STATUS_COLORS[a.status] }}>{STATUS_LABELS[a.status]}</Text>
+        <Badge label={STATUS_LABELS[a.status]} tone={STATUS_BADGE_TONES[a.status]} />
 
         {withActions &&
           (!a.allowClientCancellation ? (
-            <Text style={{ fontSize: 13, color: '#666' }}>Para cancelar, contacta con el negocio.</Text>
+            <Text style={{ ...theme.textStyles.small, color: theme.colors.textSecondary, marginTop: theme.spacing.xs }}>
+              Para cancelar, contacta con el negocio.
+            </Text>
           ) : isConfirming ? (
-            <View style={{ gap: 8 }}>
+            <View style={{ gap: theme.spacing.sm, marginTop: theme.spacing.xs }}>
               {!withinNotice && (
-                <View style={warningBoxStyle}>
-                  <Text style={{ fontSize: 13, color: '#664d03' }}>
+                <View
+                  style={{
+                    backgroundColor: theme.colors.warningSurface,
+                    borderWidth: 1,
+                    borderColor: theme.colors.warning,
+                    borderRadius: theme.radii.md,
+                    padding: theme.spacing.sm,
+                  }}
+                >
+                  <Text style={{ ...theme.textStyles.small, color: theme.colors.warning }}>
                     Estás fuera del plazo de aviso de este negocio (mínimo {a.minHoursNotice} horas). Cancelar ahora
                     podría conllevar una penalización según su política.
                   </Text>
                 </View>
               )}
-              <Text style={{ fontSize: 13, color: '#b91c1c' }}>¿Seguro que quieres cancelar esta cita?</Text>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                <Pressable
-                  onPress={() => handleCancel(a.id)}
-                  disabled={isActing}
-                  style={{ flex: 1, padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#b91c1c' }}
-                >
-                  <Text style={{ color: '#b91c1c', textAlign: 'center', fontWeight: '600' }}>
-                    {isActing ? '…' : 'Sí, cancelar'}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => setCancelingId(null)}
-                  disabled={isActing}
-                  style={{ flex: 1, padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#ccc' }}
-                >
-                  <Text style={{ textAlign: 'center' }}>No, mantener</Text>
-                </Pressable>
+              <Text style={{ ...theme.textStyles.small, color: theme.colors.danger }}>
+                ¿Seguro que quieres cancelar esta cita?
+              </Text>
+              <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+                <View style={{ flex: 1 }}>
+                  <Button
+                    label={isActing ? '…' : 'Sí, cancelar'}
+                    onPress={() => handleCancel(a.id)}
+                    disabled={isActing}
+                    variant="danger"
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Button label="No, mantener" onPress={() => setCancelingId(null)} disabled={isActing} variant="secondary" />
+                </View>
               </View>
             </View>
           ) : (
-            <Pressable
-              onPress={() => setCancelingId(a.id)}
-              style={{ padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#b91c1c' }}
-            >
-              <Text style={{ color: '#b91c1c', textAlign: 'center', fontWeight: '600' }}>Cancelar cita</Text>
-            </Pressable>
+            <View style={{ marginTop: theme.spacing.xs }}>
+              <Button label="Cancelar cita" onPress={() => setCancelingId(a.id)} variant="danger" />
+            </View>
           ))}
-      </View>
+      </Card>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 24 }}>
-      <View style={{ gap: 12 }}>
-        <Text style={sectionTitleStyle}>Próximas citas</Text>
+    <ScrollView
+      style={{ backgroundColor: theme.colors.background }}
+      contentContainerStyle={{ padding: theme.spacing.lg, gap: theme.spacing.xl }}
+    >
+      <View style={{ gap: theme.spacing.md }}>
+        <Text style={{ ...theme.textStyles.heading2, color: theme.colors.textPrimary }}>Próximas citas</Text>
         {upcoming.length === 0 ? (
-          <Text style={{ color: '#666' }}>No tienes citas próximas.</Text>
+          <Text style={{ ...theme.textStyles.body, color: theme.colors.textSecondary }}>No tienes citas próximas.</Text>
         ) : (
           upcoming.map((a) => renderAppointment(a, true))
         )}
       </View>
 
-      <View style={{ gap: 12 }}>
-        <Text style={sectionTitleStyle}>Historial</Text>
+      <View style={{ gap: theme.spacing.md }}>
+        <Text style={{ ...theme.textStyles.heading2, color: theme.colors.textPrimary }}>Historial</Text>
         {past.length === 0 ? (
-          <Text style={{ color: '#666' }}>Todavía no tienes citas pasadas.</Text>
+          <Text style={{ ...theme.textStyles.body, color: theme.colors.textSecondary }}>
+            Todavía no tienes citas pasadas.
+          </Text>
         ) : (
           past.map((a) => renderAppointment(a, false))
         )}
       </View>
 
-      {listError && <Text style={{ color: 'crimson' }}>{listError}</Text>}
+      {listError && <Text style={{ ...theme.textStyles.body, color: theme.colors.danger }}>{listError}</Text>}
     </ScrollView>
   );
 }

@@ -1,13 +1,11 @@
 import { useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
+import { theme } from '@/theme';
+import { Button, Input } from '@/components/ui';
 
 type Mode = 'client' | 'business';
-
-const buttonStyle = { backgroundColor: '#111', padding: 14, borderRadius: 8 };
-const buttonDisabledStyle = { ...buttonStyle, backgroundColor: '#ccc' };
-const buttonTextStyle = { color: '#fff', textAlign: 'center' as const };
 
 // Dos vías de acceso, coherentes con pantallas-flujos.md:
 //  - Cliente: email + OTP, mismo mecanismo que app/(client)/confirmacion.tsx
@@ -83,83 +81,90 @@ export default function Login() {
   const canLoginBusiness = email.trim() !== '' && password !== '' && !submitting;
 
   return (
-    <View style={{ flex: 1, padding: 24, justifyContent: 'center', gap: 16 }}>
-      <View style={{ flexDirection: 'row', gap: 8 }}>
-        <Pressable onPress={() => setMode('client')}>
-          <Text style={{ fontWeight: mode === 'client' ? '700' : '400' }}>Soy cliente</Text>
-        </Pressable>
-        <Pressable onPress={() => setMode('business')}>
-          <Text style={{ fontWeight: mode === 'business' ? '700' : '400' }}>Soy un negocio</Text>
-        </Pressable>
+    <View
+      style={{
+        flex: 1,
+        padding: theme.spacing.xl,
+        justifyContent: 'center',
+        gap: theme.spacing.lg,
+        backgroundColor: theme.colors.background,
+      }}
+    >
+      <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+        {(['client', 'business'] as const).map((m) => {
+          const selected = mode === m;
+          return (
+            <Pressable
+              key={m}
+              onPress={() => setMode(m)}
+              style={{
+                paddingVertical: theme.spacing.sm,
+                paddingHorizontal: theme.spacing.md,
+                borderRadius: theme.radii.md,
+                borderWidth: 1,
+                borderColor: selected ? theme.colors.primary : theme.colors.border,
+                backgroundColor: selected ? theme.colors.primary : 'transparent',
+              }}
+            >
+              <Text
+                style={{
+                  ...theme.textStyles.small,
+                  fontWeight: selected ? theme.fontWeights.semibold : theme.fontWeights.regular,
+                  color: selected ? theme.colors.textOnPrimary : theme.colors.textSecondary,
+                }}
+              >
+                {m === 'client' ? 'Soy cliente' : 'Soy un negocio'}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
 
       {mode === 'client' && !otpSent && (
         <>
-          <Text>Introduce tu email para identificarte. Te enviaremos un código de un solo uso.</Text>
-          <TextInput
+          <Text style={{ ...theme.textStyles.body, color: theme.colors.textPrimary }}>
+            Introduce tu email para identificarte. Te enviaremos un código de un solo uso.
+          </Text>
+          <Input
             placeholder="tú@email.com"
             value={clientEmail}
             onChangeText={setClientEmail}
             autoCapitalize="none"
             keyboardType="email-address"
-            style={{ borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12 }}
           />
-          <Pressable onPress={sendOtp} disabled={!canSendOtp} style={canSendOtp ? buttonStyle : buttonDisabledStyle}>
-            <Text style={buttonTextStyle}>{submitting ? 'Enviando…' : 'Enviar código'}</Text>
-          </Pressable>
+          <Button label={submitting ? 'Enviando…' : 'Enviar código'} onPress={sendOtp} disabled={!canSendOtp} />
         </>
       )}
 
       {mode === 'client' && otpSent && (
         <>
-          <Text>Te hemos enviado un código a {clientEmail}. Introdúcelo aquí.</Text>
-          <TextInput
-            placeholder="Código de 6 dígitos"
-            value={otp}
-            onChangeText={setOtp}
-            keyboardType="number-pad"
-            style={{ borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12 }}
-          />
-          <Pressable onPress={verifyOtp} disabled={!canVerifyOtp} style={canVerifyOtp ? buttonStyle : buttonDisabledStyle}>
-            <Text style={buttonTextStyle}>{submitting ? 'Confirmando…' : 'Confirmar código'}</Text>
-          </Pressable>
+          <Text style={{ ...theme.textStyles.body, color: theme.colors.textPrimary }}>
+            Te hemos enviado un código a {clientEmail}. Introdúcelo aquí.
+          </Text>
+          <Input placeholder="Código de 6 dígitos" value={otp} onChangeText={setOtp} keyboardType="number-pad" />
+          <Button label={submitting ? 'Confirmando…' : 'Confirmar código'} onPress={verifyOtp} disabled={!canVerifyOtp} />
           <Pressable onPress={sendOtp} disabled={submitting}>
-            <Text style={{ color: '#666', textAlign: 'center' }}>Reenviar código</Text>
+            <Text style={{ ...theme.textStyles.small, color: theme.colors.primary, textAlign: 'center' }}>
+              Reenviar código
+            </Text>
           </Pressable>
         </>
       )}
 
       {mode === 'business' && (
         <>
-          <TextInput
-            placeholder="Email"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            style={{ borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12 }}
-          />
-          <TextInput
-            placeholder="Contraseña"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            style={{ borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12 }}
-          />
-          <Pressable
-            onPress={loginBusiness}
-            disabled={!canLoginBusiness}
-            style={canLoginBusiness ? buttonStyle : buttonDisabledStyle}
-          >
-            <Text style={buttonTextStyle}>{submitting ? 'Entrando…' : 'Entrar'}</Text>
-          </Pressable>
+          <Input placeholder="Email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
+          <Input placeholder="Contraseña" value={password} onChangeText={setPassword} secureTextEntry />
+          <Button label={submitting ? 'Entrando…' : 'Entrar'} onPress={loginBusiness} disabled={!canLoginBusiness} />
           <Pressable onPress={() => router.push('/(auth)/registro-negocio')}>
-            <Text style={{ color: '#666', textAlign: 'center' }}>¿Tienes un negocio? Regístralo</Text>
+            <Text style={{ ...theme.textStyles.small, color: theme.colors.primary, textAlign: 'center' }}>
+              ¿Tienes un negocio? Regístralo
+            </Text>
           </Pressable>
         </>
       )}
 
-      {error && <Text style={{ color: 'crimson' }}>{error}</Text>}
+      {error && <Text style={{ ...theme.textStyles.body, color: theme.colors.danger }}>{error}</Text>}
     </View>
   );
 }

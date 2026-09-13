@@ -3,6 +3,7 @@ import { fontSizes, fontWeights, textStyles } from './typography';
 import { spacing } from './spacing';
 import { radii } from './radii';
 import { shadows } from './shadows';
+import { breakpoints } from './breakpoints';
 
 // Objeto único del sistema de diseño — todo consumo real de la app pasa
 // por `theme.<categoría>.<token>` (import { theme } from '@/theme'), nunca
@@ -19,6 +20,7 @@ export const theme = {
   spacing,
   radii,
   shadows,
+  breakpoints,
 };
 
 export type Theme = typeof theme;

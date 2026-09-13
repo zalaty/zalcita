@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, Switch, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
+import { theme } from '@/theme';
+import { Button, Card, Input } from '@/components/ui';
 import { formatLongDateInZone, formatTimeInZone } from '@/lib/timezone';
 import type { AppointmentStatus } from '@/types/database';
 
@@ -30,18 +32,6 @@ type Step =
   | 'booking' // insertando la cita
   | 'success' // cita creada
   | 'slot-taken'; // el insert chocó con otra cita ya confirmada para esa hora
-
-const inputStyle = {
-  borderWidth: 1,
-  borderColor: '#ccc',
-  borderRadius: 8,
-  padding: 12,
-  fontSize: 15,
-};
-
-const buttonStyle = { backgroundColor: '#111', padding: 14, borderRadius: 8 };
-const buttonDisabledStyle = { ...buttonStyle, backgroundColor: '#ccc' };
-const buttonTextStyle = { color: '#fff', textAlign: 'center' as const, fontWeight: '600' as const };
 
 // Un 42501 (RLS: insufficient_privilege) casi siempre es sesión caducada,
 // pero no siempre — puede ser otro problema de políticas. Lo confirmamos
@@ -335,17 +325,33 @@ export default function Confirmacion() {
 
   if (!slug || !serviceId || !startTimeParam) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        <Text>Elige antes una hora disponible para reservar.</Text>
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: theme.spacing.xl,
+          backgroundColor: theme.colors.background,
+        }}
+      >
+        <Text style={{ ...theme.textStyles.body, color: theme.colors.textSecondary, textAlign: 'center' }}>
+          Elige antes una hora disponible para reservar.
+        </Text>
       </View>
     );
   }
 
   if (!business || !service) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator />
-        {error && <Text style={{ color: 'crimson', marginTop: 12 }}>{error}</Text>}
+      <View
+        style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}
+      >
+        <ActivityIndicator color={theme.colors.primary} />
+        {error && (
+          <Text style={{ ...theme.textStyles.body, color: theme.colors.danger, marginTop: theme.spacing.md }}>
+            {error}
+          </Text>
+        )}
       </View>
     );
   }
@@ -354,84 +360,77 @@ export default function Confirmacion() {
   const canSubmitClientForm = consentDataProcessing && name.trim() !== '' && phone.trim() !== '';
 
   return (
-    <View style={{ flex: 1, padding: 16, gap: 20 }}>
-      <View style={{ gap: 4, paddingBottom: 16, borderBottomWidth: 1, borderColor: '#eee' }}>
-        <Text style={{ fontSize: 16, fontWeight: '700' }}>{business.name}</Text>
-        <Text style={{ fontSize: 15 }}>{service.name}</Text>
-        <Text style={{ fontSize: 14, color: '#444' }}>
+    <View style={{ flex: 1, padding: theme.spacing.lg, gap: theme.spacing.xl, backgroundColor: theme.colors.background }}>
+      <Card>
+        <Text style={{ ...theme.textStyles.heading2, color: theme.colors.textPrimary }}>{business.name}</Text>
+        <Text style={{ ...theme.textStyles.body, color: theme.colors.textPrimary, marginTop: theme.spacing.xs }}>
+          {service.name}
+        </Text>
+        <Text style={{ ...theme.textStyles.small, color: theme.colors.textSecondary, marginTop: theme.spacing.xs }}>
           {formatLongDateInZone(startTime, business.timezone)} · {formatTimeInZone(startTime, business.timezone)}
         </Text>
-        <Text style={{ fontSize: 13, color: '#666' }}>
+        <Text style={{ ...theme.textStyles.small, color: theme.colors.textSecondary, marginTop: theme.spacing.xs }}>
           {service.duration_minutes} min · {service.price} €
         </Text>
-      </View>
+      </Card>
 
       {step === 'loading' || step === 'resolving-client' ? (
-        <ActivityIndicator />
+        <ActivityIndicator color={theme.colors.primary} />
       ) : step === 'email' ? (
-        <View style={{ gap: 12 }}>
-          <Text>Introduce tu email para identificarte. Te enviaremos un código de un solo uso.</Text>
-          <TextInput
+        <View style={{ gap: theme.spacing.md }}>
+          <Text style={{ ...theme.textStyles.body, color: theme.colors.textPrimary }}>
+            Introduce tu email para identificarte. Te enviaremos un código de un solo uso.
+          </Text>
+          <Input
             placeholder="tú@email.com"
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
             keyboardType="email-address"
-            style={inputStyle}
           />
-          <Pressable
-            onPress={handleSendOtp}
-            disabled={email.trim() === ''}
-            style={email.trim() === '' ? buttonDisabledStyle : buttonStyle}
-          >
-            <Text style={buttonTextStyle}>Enviar código</Text>
-          </Pressable>
-          {error && <Text style={{ color: 'crimson' }}>{error}</Text>}
+          <Button label="Enviar código" onPress={handleSendOtp} disabled={email.trim() === ''} />
+          {error && <Text style={{ ...theme.textStyles.body, color: theme.colors.danger }}>{error}</Text>}
         </View>
       ) : step === 'otp' ? (
-        <View style={{ gap: 12 }}>
-          <Text>Te hemos enviado un código a {email}. Introdúcelo aquí.</Text>
-          <TextInput
-            placeholder="Código de 6 dígitos"
-            value={otp}
-            onChangeText={setOtp}
-            keyboardType="number-pad"
-            style={inputStyle}
-          />
-          <Pressable
-            onPress={handleVerifyOtp}
-            disabled={otp.trim() === ''}
-            style={otp.trim() === '' ? buttonDisabledStyle : buttonStyle}
-          >
-            <Text style={buttonTextStyle}>Confirmar código</Text>
-          </Pressable>
+        <View style={{ gap: theme.spacing.md }}>
+          <Text style={{ ...theme.textStyles.body, color: theme.colors.textPrimary }}>
+            Te hemos enviado un código a {email}. Introdúcelo aquí.
+          </Text>
+          <Input placeholder="Código de 6 dígitos" value={otp} onChangeText={setOtp} keyboardType="number-pad" />
+          <Button label="Confirmar código" onPress={handleVerifyOtp} disabled={otp.trim() === ''} />
           <Pressable onPress={handleSendOtp}>
-            <Text style={{ color: '#666', textAlign: 'center' }}>Reenviar código</Text>
+            <Text style={{ ...theme.textStyles.small, color: theme.colors.primary, textAlign: 'center' }}>
+              Reenviar código
+            </Text>
           </Pressable>
-          {error && <Text style={{ color: 'crimson' }}>{error}</Text>}
+          {error && <Text style={{ ...theme.textStyles.body, color: theme.colors.danger }}>{error}</Text>}
         </View>
       ) : step === 'client-form' ? (
-        <View style={{ gap: 12 }}>
-          <Text style={{ fontSize: 15, fontWeight: '600' }}>Antes de confirmar, cuéntanos quién eres</Text>
-          <TextInput placeholder="Nombre" value={name} onChangeText={setName} style={inputStyle} />
-          <TextInput
-            placeholder="Teléfono"
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
-            style={inputStyle}
-          />
+        <View style={{ gap: theme.spacing.md }}>
+          <Text style={{ ...theme.textStyles.heading2, color: theme.colors.textPrimary }}>
+            Antes de confirmar, cuéntanos quién eres
+          </Text>
+          <Input placeholder="Nombre" value={name} onChangeText={setName} />
+          <Input placeholder="Teléfono" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <Switch value={consentDataProcessing} onValueChange={setConsentDataProcessing} />
-            <Text style={{ flex: 1, fontSize: 13 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
+            <Switch
+              value={consentDataProcessing}
+              onValueChange={setConsentDataProcessing}
+              trackColor={{ true: theme.colors.primary }}
+            />
+            <Text style={{ flex: 1, ...theme.textStyles.small, color: theme.colors.textPrimary }}>
               Acepto que {business.name} trate mis datos para gestionar mi reserva. Obligatorio para reservar.
             </Text>
           </View>
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <Switch value={consentMarketing} onValueChange={setConsentMarketing} />
-            <Text style={{ flex: 1, fontSize: 13 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
+            <Switch
+              value={consentMarketing}
+              onValueChange={setConsentMarketing}
+              trackColor={{ true: theme.colors.primary }}
+            />
+            <Text style={{ flex: 1, ...theme.textStyles.small, color: theme.colors.textPrimary }}>
               Quiero recibir ofertas y novedades de {business.name} (opcional).
             </Text>
           </View>
@@ -441,55 +440,47 @@ export default function Confirmacion() {
               // TODO: enlazar a la política de privacidad real cuando exista.
             }}
           >
-            <Text style={{ fontSize: 12, color: '#666', textDecorationLine: 'underline' }}>
+            <Text style={{ ...theme.textStyles.caption, color: theme.colors.primary, textDecorationLine: 'underline' }}>
               Política de privacidad
             </Text>
           </Pressable>
 
-          <Pressable
-            onPress={handleCreateClient}
-            disabled={!canSubmitClientForm}
-            style={canSubmitClientForm ? buttonStyle : buttonDisabledStyle}
-          >
-            <Text style={buttonTextStyle}>Continuar</Text>
-          </Pressable>
-          {error && <Text style={{ color: 'crimson' }}>{error}</Text>}
+          <Button label="Continuar" onPress={handleCreateClient} disabled={!canSubmitClientForm} />
+          {error && <Text style={{ ...theme.textStyles.body, color: theme.colors.danger }}>{error}</Text>}
         </View>
       ) : step === 'ready' ? (
-        <View style={{ gap: 12 }}>
-          <Pressable onPress={handleConfirmBooking} style={buttonStyle}>
-            <Text style={buttonTextStyle}>Confirmar reserva</Text>
-          </Pressable>
-          {error && <Text style={{ color: 'crimson' }}>{error}</Text>}
+        <View style={{ gap: theme.spacing.md }}>
+          <Button label="Confirmar reserva" onPress={handleConfirmBooking} />
+          {error && <Text style={{ ...theme.textStyles.body, color: theme.colors.danger }}>{error}</Text>}
         </View>
       ) : step === 'booking' ? (
-        <ActivityIndicator />
+        <ActivityIndicator color={theme.colors.primary} />
       ) : step === 'slot-taken' ? (
-        <View style={{ gap: 12 }}>
-          <Text style={{ fontSize: 15 }}>Esa hora acaba de ocuparse, por favor elige otra.</Text>
-          <Pressable
+        <View style={{ gap: theme.spacing.md }}>
+          <Text style={{ ...theme.textStyles.body, color: theme.colors.textPrimary }}>
+            Esa hora acaba de ocuparse, por favor elige otra.
+          </Text>
+          <Button
+            label="Volver al calendario"
             onPress={() =>
               router.replace({ pathname: '/(client)/disponibilidad', params: { slug: slug!, service_id: serviceId! } })
             }
-            style={buttonStyle}
-          >
-            <Text style={buttonTextStyle}>Volver al calendario</Text>
-          </Pressable>
+          />
         </View>
       ) : step === 'success' ? (
-        <View style={{ gap: 12 }}>
-          <Text style={{ fontSize: 17, fontWeight: '700' }}>
+        <View style={{ gap: theme.spacing.md }}>
+          <Text style={{ ...theme.textStyles.heading1, color: theme.colors.textPrimary }}>
             {bookedStatus === 'pending' ? 'Tu cita está pendiente de confirmación' : '¡Cita confirmada!'}
           </Text>
           {bookedStatus === 'pending' && (
-            <Text style={{ color: '#444' }}>{business.name} tiene que confirmarla; te avisaremos.</Text>
+            <Text style={{ ...theme.textStyles.body, color: theme.colors.textSecondary }}>
+              {business.name} tiene que confirmarla; te avisaremos.
+            </Text>
           )}
-          <Pressable
+          <Button
+            label="Volver al inicio"
             onPress={() => router.replace({ pathname: '/(client)', params: { slug: slug! } })}
-            style={buttonStyle}
-          >
-            <Text style={buttonTextStyle}>Volver al inicio</Text>
-          </Pressable>
+          />
         </View>
       ) : null}
     </View>

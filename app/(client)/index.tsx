@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
+import { theme } from '@/theme';
+import { Card } from '@/components/ui';
 import type { Service } from '@/types/database';
 
 // Punto de entrada del cliente: app.zalaty.com/{slug} en web, o deep link
@@ -39,26 +41,41 @@ export default function ClientHome() {
 
   if (!slug) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        <Text>Accede desde el enlace o QR de tu negocio para ver su disponibilidad.</Text>
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: theme.spacing.xl,
+          backgroundColor: theme.colors.background,
+        }}
+      >
+        <Text style={{ ...theme.textStyles.body, color: theme.colors.textSecondary, textAlign: 'center' }}>
+          Accede desde el enlace o QR de tu negocio para ver su disponibilidad.
+        </Text>
       </View>
     );
   }
 
   if (loading) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator />
+      <View
+        style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}
+      >
+        <ActivityIndicator color={theme.colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1, padding: 16 }}>
-      <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 12 }}>Elige un servicio</Text>
+    <View style={{ flex: 1, padding: theme.spacing.lg, backgroundColor: theme.colors.background }}>
+      <Text style={{ ...theme.textStyles.heading2, color: theme.colors.textPrimary, marginBottom: theme.spacing.md }}>
+        Elige un servicio
+      </Text>
       <FlatList
         data={services}
         keyExtractor={(item) => item.id}
+        contentContainerStyle={{ gap: theme.spacing.sm }}
         renderItem={({ item }) => (
           <Pressable
             onPress={() =>
@@ -67,15 +84,20 @@ export default function ClientHome() {
                 params: { slug: slug!, service_id: item.id },
               })
             }
-            style={{ paddingVertical: 12, borderBottomWidth: 1, borderColor: '#eee' }}
           >
-            <Text style={{ fontSize: 15 }}>{item.name}</Text>
-            <Text style={{ fontSize: 13, color: '#666' }}>
-              {item.duration_minutes} min · {item.price} €
-            </Text>
+            <Card>
+              <Text style={{ ...theme.textStyles.bodyMedium, color: theme.colors.textPrimary }}>{item.name}</Text>
+              <Text style={{ ...theme.textStyles.small, color: theme.colors.textSecondary, marginTop: theme.spacing.xs }}>
+                {item.duration_minutes} min · {item.price} €
+              </Text>
+            </Card>
           </Pressable>
         )}
-        ListEmptyComponent={<Text>Este negocio todavía no tiene servicios publicados.</Text>}
+        ListEmptyComponent={
+          <Text style={{ ...theme.textStyles.body, color: theme.colors.textSecondary }}>
+            Este negocio todavía no tiene servicios publicados.
+          </Text>
+        }
       />
     </View>
   );
