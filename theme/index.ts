@@ -4,6 +4,7 @@ import { spacing } from './spacing';
 import { radii } from './radii';
 import { shadows } from './shadows';
 import { breakpoints } from './breakpoints';
+import { layout } from './layout';
 
 // Objeto único del sistema de diseño — todo consumo real de la app pasa
 // por `theme.<categoría>.<token>` (import { theme } from '@/theme'), nunca
@@ -21,6 +22,7 @@ export const theme = {
   radii,
   shadows,
   breakpoints,
+  layout,
 };
 
 export type Theme = typeof theme;

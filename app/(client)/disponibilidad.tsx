@@ -30,13 +30,6 @@ interface ServiceInfo {
   price: number;
 }
 
-// Ancho máximo del contenido en pantalla ancha (~600-720px): en escritorio
-// el contenido queda centrado en vez de estirarse de lado a lado; en móvil
-// (por debajo de este ancho) ocupa el 100% igual que antes — no hace falta
-// lógica de breakpoint para esto en concreto, `maxWidth` + `alignSelf:
-// 'center'` ya se encargan solos y de paso acotan cualquier botón interno.
-const CONTENT_MAX_WIDTH = 680;
-
 export default function Disponibilidad() {
   const router = useRouter();
   const { slug, service_id: serviceId } = useLocalSearchParams<{
@@ -229,7 +222,12 @@ export default function Disponibilidad() {
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: theme.spacing.lg, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' }}
+        contentContainerStyle={{
+          padding: theme.spacing.lg,
+          width: '100%',
+          maxWidth: theme.layout.contentMaxWidth,
+          alignSelf: 'center',
+        }}
       >
         {/* Tarjeta contenedora: agrupa cabecera + navegación + huecos como
             una sola unidad ("el panel de reserva de este negocio") en vez

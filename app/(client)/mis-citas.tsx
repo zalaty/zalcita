@@ -194,8 +194,12 @@ export default function MisCitas() {
               </View>
             </View>
           ) : (
+            // Secundario, no danger: cancelar es una acción normal del
+            // cliente, no debería leerse tan agresiva como confirmarla —
+            // el rojo se reserva para el paso irreversible de verdad
+            // ("Sí, cancelar", más abajo).
             <View style={{ marginTop: theme.spacing.xs }}>
-              <Button label="Cancelar cita" onPress={() => setCancelingId(a.id)} variant="danger" />
+              <Button label="Cancelar cita" onPress={() => setCancelingId(a.id)} variant="secondary" />
             </View>
           ))}
       </Card>
@@ -204,8 +208,14 @@ export default function MisCitas() {
 
   return (
     <ScrollView
-      style={{ backgroundColor: theme.colors.background }}
-      contentContainerStyle={{ padding: theme.spacing.lg, gap: theme.spacing.xl }}
+      style={{ flex: 1, backgroundColor: theme.colors.background }}
+      contentContainerStyle={{
+        padding: theme.spacing.lg,
+        gap: theme.spacing.xl,
+        width: '100%',
+        maxWidth: theme.layout.contentMaxWidth,
+        alignSelf: 'center',
+      }}
     >
       <View style={{ gap: theme.spacing.md }}>
         <Text style={{ ...theme.textStyles.heading2, color: theme.colors.textPrimary }}>Próximas citas</Text>

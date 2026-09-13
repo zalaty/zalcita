@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { theme } from '@/theme';
-import { Button, Input } from '@/components/ui';
+import { Button, Card, Input } from '@/components/ui';
 
 type Mode = 'client' | 'business';
 
@@ -84,87 +84,103 @@ export default function Login() {
     <View
       style={{
         flex: 1,
-        padding: theme.spacing.xl,
         justifyContent: 'center',
-        gap: theme.spacing.lg,
+        padding: theme.spacing.xl,
         backgroundColor: theme.colors.background,
       }}
     >
-      <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
-        {(['client', 'business'] as const).map((m) => {
-          const selected = mode === m;
-          return (
-            <Pressable
-              key={m}
-              onPress={() => setMode(m)}
-              style={{
-                paddingVertical: theme.spacing.sm,
-                paddingHorizontal: theme.spacing.md,
-                borderRadius: theme.radii.md,
-                borderWidth: 1,
-                borderColor: selected ? theme.colors.primary : theme.colors.border,
-                backgroundColor: selected ? theme.colors.primary : 'transparent',
-              }}
-            >
-              <Text
-                style={{
-                  ...theme.textStyles.small,
-                  fontWeight: selected ? theme.fontWeights.semibold : theme.fontWeights.regular,
-                  color: selected ? theme.colors.textOnPrimary : theme.colors.textSecondary,
-                }}
-              >
-                {m === 'client' ? 'Soy cliente' : 'Soy un negocio'}
+      {/* Mismo patrón que disponibilidad.tsx: Card contenedora centrada,
+          acotada en ancho — así los inputs/botones no se estiran a todo el
+          ancho de la pantalla en escritorio. */}
+      <View style={{ width: '100%', maxWidth: theme.layout.contentMaxWidth, alignSelf: 'center' }}>
+        <Card style={{ gap: theme.spacing.lg }}>
+          <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+            {(['client', 'business'] as const).map((m) => {
+              const selected = mode === m;
+              return (
+                <Pressable
+                  key={m}
+                  onPress={() => setMode(m)}
+                  style={{
+                    paddingVertical: theme.spacing.sm,
+                    paddingHorizontal: theme.spacing.md,
+                    borderRadius: theme.radii.md,
+                    borderWidth: 1,
+                    borderColor: selected ? theme.colors.primary : theme.colors.border,
+                    backgroundColor: selected ? theme.colors.primary : 'transparent',
+                  }}
+                >
+                  <Text
+                    style={{
+                      ...theme.textStyles.small,
+                      fontWeight: selected ? theme.fontWeights.semibold : theme.fontWeights.regular,
+                      color: selected ? theme.colors.textOnPrimary : theme.colors.textSecondary,
+                    }}
+                  >
+                    {m === 'client' ? 'Soy cliente' : 'Soy un negocio'}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {mode === 'client' && !otpSent && (
+            <>
+              <Text style={{ ...theme.textStyles.body, color: theme.colors.textPrimary }}>
+                Introduce tu email para identificarte. Te enviaremos un código de un solo uso.
               </Text>
-            </Pressable>
-          );
-        })}
+              <Input
+                placeholder="tú@email.com"
+                value={clientEmail}
+                onChangeText={setClientEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+              />
+              <Button label={submitting ? 'Enviando…' : 'Enviar código'} onPress={sendOtp} disabled={!canSendOtp} />
+            </>
+          )}
+
+          {mode === 'client' && otpSent && (
+            <>
+              <Text style={{ ...theme.textStyles.body, color: theme.colors.textPrimary }}>
+                Te hemos enviado un código a {clientEmail}. Introdúcelo aquí.
+              </Text>
+              <Input placeholder="Código de 6 dígitos" value={otp} onChangeText={setOtp} keyboardType="number-pad" />
+              <Button
+                label={submitting ? 'Confirmando…' : 'Confirmar código'}
+                onPress={verifyOtp}
+                disabled={!canVerifyOtp}
+              />
+              <Pressable onPress={sendOtp} disabled={submitting}>
+                <Text style={{ ...theme.textStyles.small, color: theme.colors.primary, textAlign: 'center' }}>
+                  Reenviar código
+                </Text>
+              </Pressable>
+            </>
+          )}
+
+          {mode === 'business' && (
+            <>
+              <Input
+                placeholder="Email"
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+              />
+              <Input placeholder="Contraseña" value={password} onChangeText={setPassword} secureTextEntry />
+              <Button label={submitting ? 'Entrando…' : 'Entrar'} onPress={loginBusiness} disabled={!canLoginBusiness} />
+              <Pressable onPress={() => router.push('/(auth)/registro-negocio')}>
+                <Text style={{ ...theme.textStyles.small, color: theme.colors.primary, textAlign: 'center' }}>
+                  ¿Tienes un negocio? Regístralo
+                </Text>
+              </Pressable>
+            </>
+          )}
+
+          {error && <Text style={{ ...theme.textStyles.body, color: theme.colors.danger }}>{error}</Text>}
+        </Card>
       </View>
-
-      {mode === 'client' && !otpSent && (
-        <>
-          <Text style={{ ...theme.textStyles.body, color: theme.colors.textPrimary }}>
-            Introduce tu email para identificarte. Te enviaremos un código de un solo uso.
-          </Text>
-          <Input
-            placeholder="tú@email.com"
-            value={clientEmail}
-            onChangeText={setClientEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-          />
-          <Button label={submitting ? 'Enviando…' : 'Enviar código'} onPress={sendOtp} disabled={!canSendOtp} />
-        </>
-      )}
-
-      {mode === 'client' && otpSent && (
-        <>
-          <Text style={{ ...theme.textStyles.body, color: theme.colors.textPrimary }}>
-            Te hemos enviado un código a {clientEmail}. Introdúcelo aquí.
-          </Text>
-          <Input placeholder="Código de 6 dígitos" value={otp} onChangeText={setOtp} keyboardType="number-pad" />
-          <Button label={submitting ? 'Confirmando…' : 'Confirmar código'} onPress={verifyOtp} disabled={!canVerifyOtp} />
-          <Pressable onPress={sendOtp} disabled={submitting}>
-            <Text style={{ ...theme.textStyles.small, color: theme.colors.primary, textAlign: 'center' }}>
-              Reenviar código
-            </Text>
-          </Pressable>
-        </>
-      )}
-
-      {mode === 'business' && (
-        <>
-          <Input placeholder="Email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
-          <Input placeholder="Contraseña" value={password} onChangeText={setPassword} secureTextEntry />
-          <Button label={submitting ? 'Entrando…' : 'Entrar'} onPress={loginBusiness} disabled={!canLoginBusiness} />
-          <Pressable onPress={() => router.push('/(auth)/registro-negocio')}>
-            <Text style={{ ...theme.textStyles.small, color: theme.colors.primary, textAlign: 'center' }}>
-              ¿Tienes un negocio? Regístralo
-            </Text>
-          </Pressable>
-        </>
-      )}
-
-      {error && <Text style={{ ...theme.textStyles.body, color: theme.colors.danger }}>{error}</Text>}
     </View>
   );
 }
