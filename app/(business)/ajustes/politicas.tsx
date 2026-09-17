@@ -1,18 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useBusiness } from '@/context/BusinessContext';
+import { theme } from '@/theme';
+import { Button, Card, Input } from '@/components/ui';
 import type { PaymentPolicy } from '@/types/database';
-
-const inputStyle = { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12 };
-const buttonStyle = { backgroundColor: '#111', padding: 14, borderRadius: 8 };
-const buttonDisabledStyle = { ...buttonStyle, backgroundColor: '#ccc' };
-const buttonTextStyle = { color: '#fff', textAlign: 'center' as const, fontWeight: '600' as const };
-const sectionTitleStyle = { fontSize: 16, fontWeight: '700' as const };
-const noteStyle = { fontSize: 12, color: '#666' };
-const rowStyle = { padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#ccc' };
-const rowSelectedStyle = { ...rowStyle, borderColor: '#111', borderWidth: 2 };
 
 type PenaltyType = 'none' | 'deposit_loss' | 'fixed_fee';
 
@@ -37,17 +30,32 @@ const PAYMENT_OPTIONS: { value: PaymentPolicy; label: string }[] = [
 
 function chipStyle(selected: boolean) {
   return {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: theme.radii.md,
     borderWidth: 1,
-    borderColor: selected ? '#111' : '#ccc',
-    backgroundColor: selected ? '#111' : 'transparent',
+    borderColor: selected ? theme.colors.primary : theme.colors.border,
+    backgroundColor: selected ? theme.colors.primary : 'transparent',
   };
 }
 
 function chipTextStyle(selected: boolean) {
-  return { fontSize: 13, color: selected ? '#fff' : '#111', fontWeight: selected ? ('600' as const) : ('400' as const) };
+  return {
+    fontSize: theme.fontSizes.sm,
+    color: selected ? theme.colors.textOnPrimary : theme.colors.textPrimary,
+    fontWeight: selected ? theme.fontWeights.semibold : theme.fontWeights.regular,
+  };
+}
+
+function optionRowStyle(selected: boolean) {
+  return {
+    padding: theme.spacing.md,
+    borderRadius: theme.radii.md,
+    borderWidth: selected ? 2 : 1,
+    borderColor: selected ? theme.colors.primary : theme.colors.border,
+    backgroundColor: theme.colors.surface,
+    ...theme.shadows.sm,
+  };
 }
 
 // Cierra el círculo de la cancelación: el cliente ya respeta estas
@@ -195,114 +203,152 @@ export default function Politicas() {
 
   if (!business) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator />
+      <View
+        style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}
+      >
+        <ActivityIndicator color={theme.colors.primary} />
       </View>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 24 }}>
-      {loading && (
-        <View style={{ alignItems: 'center' }}>
-          <ActivityIndicator />
-        </View>
-      )}
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      <ScrollView
+        contentContainerStyle={{
+          padding: theme.spacing.lg,
+          gap: theme.spacing.lg,
+          width: '100%',
+          maxWidth: theme.layout.panelMaxWidth,
+          alignSelf: 'center',
+        }}
+      >
+        {loading && (
+          <View style={{ alignItems: 'center' }}>
+            <ActivityIndicator color={theme.colors.primary} />
+          </View>
+        )}
 
-      <View style={{ gap: 12 }}>
-        <Text style={sectionTitleStyle}>Cancelación</Text>
-        <Pressable
-          onPress={() => setAllowCancellation((v) => !v)}
-          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
-        >
-          <Text style={{ fontSize: 14, flex: 1 }}>El cliente puede cancelar su cita desde la app</Text>
-          <Switch value={allowCancellation} onValueChange={setAllowCancellation} style={{ pointerEvents: 'none' }} />
-        </Pressable>
-
-        {allowCancellation && (
-          <>
-            <Text style={{ fontSize: 13, color: '#444' }}>Antelación mínima para cancelar sin aviso de fuera de plazo</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {NOTICE_OPTIONS.map((opt) => (
-                <Pressable key={opt.value} onPress={() => setMinHoursNotice(opt.value)} style={chipStyle(minHoursNotice === opt.value)}>
-                  <Text style={chipTextStyle(minHoursNotice === opt.value)}>{opt.label}</Text>
-                </Pressable>
-              ))}
-            </View>
-
-            <Text style={{ fontSize: 13, color: '#444', marginTop: 8 }}>Penalización por cancelar fuera de plazo</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {PENALTY_OPTIONS.map((opt) => (
-                <Pressable key={opt.value} onPress={() => setPenaltyType(opt.value)} style={chipStyle(penaltyType === opt.value)}>
-                  <Text style={chipTextStyle(penaltyType === opt.value)}>{opt.label}</Text>
-                </Pressable>
-              ))}
-            </View>
-            {penaltyType === 'fixed_fee' && (
-              <TextInput
-                placeholder="Importe de la penalización (€)"
-                value={penaltyAmount}
-                onChangeText={setPenaltyAmount}
-                keyboardType="decimal-pad"
-                style={inputStyle}
-              />
-            )}
-            <Text style={noteStyle}>
-              Informativa — todavía no hay integración de pagos, así que no se cobra automáticamente.
+        <Card>
+          <Text style={{ ...theme.textStyles.heading2, color: theme.colors.textPrimary, marginBottom: theme.spacing.md }}>
+            Cancelación
+          </Text>
+          <Pressable
+            onPress={() => setAllowCancellation((v) => !v)}
+            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+          >
+            <Text style={{ ...theme.textStyles.body, color: theme.colors.textPrimary, flex: 1 }}>
+              El cliente puede cancelar su cita desde la app
             </Text>
-          </>
-        )}
-      </View>
+            <Switch
+              value={allowCancellation}
+              onValueChange={setAllowCancellation}
+              trackColor={{ true: theme.colors.primary }}
+              style={{ pointerEvents: 'none' }}
+            />
+          </Pressable>
 
-      <View style={{ gap: 12 }}>
-        <Text style={sectionTitleStyle}>Pago</Text>
-        <View style={{ gap: 8 }}>
-          {PAYMENT_OPTIONS.map((opt) => (
-            <Pressable
-              key={opt.value}
-              onPress={() => setPaymentPolicy(opt.value)}
-              style={paymentPolicy === opt.value ? rowSelectedStyle : rowStyle}
-            >
-              <Text style={{ fontSize: 14, fontWeight: paymentPolicy === opt.value ? '600' : '400' }}>{opt.label}</Text>
-            </Pressable>
-          ))}
-        </View>
-        {paymentPolicy === 'deposit' && (
-          <TextInput
-            placeholder="Porcentaje de señal (%)"
-            value={depositPercentage}
-            onChangeText={setDepositPercentage}
-            keyboardType="decimal-pad"
-            style={inputStyle}
-          />
-        )}
-        <Text style={noteStyle}>
-          El pago online requiere conectar una pasarela de pago, todavía no disponible — elijas lo que elijas, de
-          momento el cobro real se hace en el negocio.
-        </Text>
-      </View>
+          {allowCancellation && (
+            <View style={{ gap: theme.spacing.sm, marginTop: theme.spacing.md }}>
+              <Text style={{ ...theme.textStyles.small, color: theme.colors.textSecondary }}>
+                Antelación mínima para cancelar sin aviso de fuera de plazo
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
+                {NOTICE_OPTIONS.map((opt) => (
+                  <Pressable key={opt.value} onPress={() => setMinHoursNotice(opt.value)} style={chipStyle(minHoursNotice === opt.value)}>
+                    <Text style={chipTextStyle(minHoursNotice === opt.value)}>{opt.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
 
-      <View style={{ gap: 12 }}>
-        <Text style={sectionTitleStyle}>Confirmación manual</Text>
-        <Pressable
-          onPress={() => setRequiresOwnerConfirmation((v) => !v)}
-          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
-        >
-          <Text style={{ fontSize: 14, flex: 1 }}>Confirmar manualmente cada cita antes de aceptarla</Text>
-          <Switch value={requiresOwnerConfirmation} onValueChange={setRequiresOwnerConfirmation} style={{ pointerEvents: 'none' }} />
-        </Pressable>
-        <Text style={noteStyle}>
-          Si está activo, las reservas de cliente entran como "pendientes" hasta que las confirmes.
-        </Text>
-      </View>
+              <Text style={{ ...theme.textStyles.small, color: theme.colors.textSecondary, marginTop: theme.spacing.sm }}>
+                Penalización por cancelar fuera de plazo
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
+                {PENALTY_OPTIONS.map((opt) => (
+                  <Pressable key={opt.value} onPress={() => setPenaltyType(opt.value)} style={chipStyle(penaltyType === opt.value)}>
+                    <Text style={chipTextStyle(penaltyType === opt.value)}>{opt.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              {penaltyType === 'fixed_fee' && (
+                <Input
+                  placeholder="Importe de la penalización (€)"
+                  value={penaltyAmount}
+                  onChangeText={setPenaltyAmount}
+                  keyboardType="decimal-pad"
+                />
+              )}
+              <Text style={{ ...theme.textStyles.caption, color: theme.colors.textMuted }}>
+                Informativa — todavía no hay integración de pagos, así que no se cobra automáticamente.
+              </Text>
+            </View>
+          )}
+        </Card>
 
-      <Pressable onPress={handleSave} disabled={saving} style={saving ? buttonDisabledStyle : buttonStyle}>
-        <Text style={buttonTextStyle}>{saving ? 'Guardando…' : 'Guardar'}</Text>
-      </Pressable>
+        <Card>
+          <Text style={{ ...theme.textStyles.heading2, color: theme.colors.textPrimary, marginBottom: theme.spacing.md }}>
+            Pago
+          </Text>
+          <View style={{ gap: theme.spacing.sm }}>
+            {PAYMENT_OPTIONS.map((opt) => (
+              <Pressable key={opt.value} onPress={() => setPaymentPolicy(opt.value)} style={optionRowStyle(paymentPolicy === opt.value)}>
+                <Text
+                  style={{
+                    ...theme.textStyles.body,
+                    color: theme.colors.textPrimary,
+                    fontWeight: paymentPolicy === opt.value ? theme.fontWeights.semibold : theme.fontWeights.regular,
+                  }}
+                >
+                  {opt.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+          {paymentPolicy === 'deposit' && (
+            <View style={{ marginTop: theme.spacing.sm }}>
+              <Input
+                placeholder="Porcentaje de señal (%)"
+                value={depositPercentage}
+                onChangeText={setDepositPercentage}
+                keyboardType="decimal-pad"
+              />
+            </View>
+          )}
+          <Text style={{ ...theme.textStyles.caption, color: theme.colors.textMuted, marginTop: theme.spacing.sm }}>
+            El pago online requiere conectar una pasarela de pago, todavía no disponible — elijas lo que elijas, de
+            momento el cobro real se hace en el negocio.
+          </Text>
+        </Card>
 
-      {saveSuccess && <Text style={{ color: '#15803d' }}>Guardado.</Text>}
-      {saveError && <Text style={{ color: 'crimson' }}>{saveError}</Text>}
-      {loadError && <Text style={{ color: 'crimson' }}>{loadError}</Text>}
-    </ScrollView>
+        <Card>
+          <Text style={{ ...theme.textStyles.heading2, color: theme.colors.textPrimary, marginBottom: theme.spacing.md }}>
+            Confirmación manual
+          </Text>
+          <Pressable
+            onPress={() => setRequiresOwnerConfirmation((v) => !v)}
+            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+          >
+            <Text style={{ ...theme.textStyles.body, color: theme.colors.textPrimary, flex: 1 }}>
+              Confirmar manualmente cada cita antes de aceptarla
+            </Text>
+            <Switch
+              value={requiresOwnerConfirmation}
+              onValueChange={setRequiresOwnerConfirmation}
+              trackColor={{ true: theme.colors.primary }}
+              style={{ pointerEvents: 'none' }}
+            />
+          </Pressable>
+          <Text style={{ ...theme.textStyles.caption, color: theme.colors.textMuted, marginTop: theme.spacing.sm }}>
+            Si está activo, las reservas de cliente entran como "pendientes" hasta que las confirmes.
+          </Text>
+        </Card>
+
+        <Button label={saving ? 'Guardando…' : 'Guardar'} onPress={handleSave} disabled={saving} />
+
+        {saveSuccess && <Text style={{ ...theme.textStyles.body, color: theme.colors.success }}>Guardado.</Text>}
+        {saveError && <Text style={{ ...theme.textStyles.body, color: theme.colors.danger }}>{saveError}</Text>}
+        {loadError && <Text style={{ ...theme.textStyles.body, color: theme.colors.danger }}>{loadError}</Text>}
+      </ScrollView>
+    </View>
   );
 }

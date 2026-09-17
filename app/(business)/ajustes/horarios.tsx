@@ -1,25 +1,12 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useBusiness } from '@/context/BusinessContext';
+import { theme } from '@/theme';
+import { Button, Card, Input } from '@/components/ui';
 import { addMonthsToMonthStr, monthGridCells, monthLabel, todayDateStrInZone } from '@/lib/timezone';
 import type { ScheduleException, WorkingHours } from '@/types/database';
-
-const inputStyle = { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12 };
-const buttonStyle = { backgroundColor: '#111', padding: 14, borderRadius: 8 };
-const buttonDisabledStyle = { ...buttonStyle, backgroundColor: '#ccc' };
-const buttonTextStyle = { color: '#fff', textAlign: 'center' as const, fontWeight: '600' as const };
-const formBoxStyle = { gap: 8, padding: 10, borderRadius: 8, backgroundColor: '#f7f7f7' };
-const rowStyle = {
-  flexDirection: 'row' as const,
-  alignItems: 'center' as const,
-  justifyContent: 'space-between' as const,
-  padding: 10,
-  borderRadius: 8,
-  borderWidth: 1,
-  borderColor: '#eee',
-};
 
 // Lunes primero, aunque en la BD domingo sea 0 (day_of_week 0=domingo..6=sábado).
 const WEEKDAYS: { dow: number; label: string }[] = [
@@ -36,19 +23,39 @@ const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 const MINUTES = ['00', '15', '30', '45'];
 const WEEKDAY_HEADER = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 
+// Fila-chip compartida por tramos de horario y excepciones: borde + sombra
+// sutil para que se distingan de la Card blanca que las contiene (misma
+// lección que los huecos de disponibilidad.tsx — sombra sola no basta
+// cuando fila y contenedor comparten el mismo blanco).
+const chipRowStyle = {
+  flexDirection: 'row' as const,
+  alignItems: 'center' as const,
+  justifyContent: 'space-between' as const,
+  padding: theme.spacing.sm,
+  borderRadius: theme.radii.md,
+  borderWidth: 1,
+  borderColor: theme.colors.border,
+  backgroundColor: theme.colors.surface,
+  ...theme.shadows.sm,
+};
+
 function chipStyle(selected: boolean) {
   return {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 8,
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.sm,
+    borderRadius: theme.radii.md,
     borderWidth: 1,
-    borderColor: selected ? '#111' : '#ccc',
-    backgroundColor: selected ? '#111' : 'transparent',
+    borderColor: selected ? theme.colors.primary : theme.colors.border,
+    backgroundColor: selected ? theme.colors.primary : 'transparent',
   };
 }
 
 function chipTextStyle(selected: boolean) {
-  return { fontSize: 13, color: selected ? '#fff' : '#111', fontWeight: selected ? ('600' as const) : ('400' as const) };
+  return {
+    fontSize: theme.fontSizes.sm,
+    color: selected ? theme.colors.textOnPrimary : theme.colors.textPrimary,
+    fontWeight: selected ? theme.fontWeights.semibold : theme.fontWeights.regular,
+  };
 }
 
 function timeToMinutes(value: string): number | null {
@@ -76,10 +83,10 @@ function TimeSelector({ label, value, onChange }: { label: string; value: string
   const [h, m] = value.includes(':') ? value.split(':') : ['', ''];
 
   return (
-    <View style={{ gap: 6, flex: 1 }}>
-      <Text style={{ fontSize: 12, color: '#666' }}>{label}</Text>
+    <View style={{ gap: theme.spacing.xs, flex: 1 }}>
+      <Text style={{ ...theme.textStyles.caption, color: theme.colors.textSecondary }}>{label}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <View style={{ flexDirection: 'row', gap: 6 }}>
+        <View style={{ flexDirection: 'row', gap: theme.spacing.xs }}>
           {HOURS.map((hh) => (
             <Pressable key={hh} onPress={() => onChange(`${hh}:${m || '00'}`)} style={chipStyle(h === hh)}>
               <Text style={chipTextStyle(h === hh)}>{hh}</Text>
@@ -87,7 +94,7 @@ function TimeSelector({ label, value, onChange }: { label: string; value: string
           ))}
         </View>
       </ScrollView>
-      <View style={{ flexDirection: 'row', gap: 6 }}>
+      <View style={{ flexDirection: 'row', gap: theme.spacing.xs }}>
         {MINUTES.map((mm) => (
           <Pressable key={mm} onPress={() => onChange(`${h || '00'}:${mm}`)} style={chipStyle(m === mm)}>
             <Text style={chipTextStyle(m === mm)}>{mm}</Text>
@@ -114,21 +121,33 @@ function MonthCalendar({
   const cells = monthGridCells(viewMonth);
 
   return (
-    <View style={{ gap: 8 }}>
+    <View style={{ gap: theme.spacing.sm }}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <Pressable onPress={() => setViewMonth((m) => addMonthsToMonthStr(m, -1))} style={{ padding: 8 }}>
-          <Text style={{ fontSize: 18 }}>‹</Text>
+        <Pressable onPress={() => setViewMonth((m) => addMonthsToMonthStr(m, -1))} style={{ padding: theme.spacing.sm }}>
+          <Text style={{ fontSize: theme.fontSizes.lg, color: theme.colors.textPrimary }}>‹</Text>
         </Pressable>
-        <Text style={{ flex: 1, textAlign: 'center', fontSize: 14, fontWeight: '600', textTransform: 'capitalize' }}>
+        <Text
+          style={{
+            flex: 1,
+            textAlign: 'center',
+            ...theme.textStyles.small,
+            fontWeight: theme.fontWeights.semibold,
+            color: theme.colors.textPrimary,
+            textTransform: 'capitalize',
+          }}
+        >
           {monthLabel(viewMonth)}
         </Text>
-        <Pressable onPress={() => setViewMonth((m) => addMonthsToMonthStr(m, 1))} style={{ padding: 8 }}>
-          <Text style={{ fontSize: 18 }}>›</Text>
+        <Pressable onPress={() => setViewMonth((m) => addMonthsToMonthStr(m, 1))} style={{ padding: theme.spacing.sm }}>
+          <Text style={{ fontSize: theme.fontSizes.lg, color: theme.colors.textPrimary }}>›</Text>
         </Pressable>
       </View>
       <View style={{ flexDirection: 'row' }}>
         {WEEKDAY_HEADER.map((d, i) => (
-          <Text key={i} style={{ width: `${100 / 7}%`, textAlign: 'center', fontSize: 11, color: '#666' }}>
+          <Text
+            key={i}
+            style={{ width: `${100 / 7}%`, textAlign: 'center', ...theme.textStyles.caption, color: theme.colors.textMuted }}
+          >
             {d}
           </Text>
         ))}
@@ -152,11 +171,13 @@ function MonthCalendar({
                   borderRadius: 16,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  backgroundColor: selected ? '#111' : 'transparent',
+                  backgroundColor: selected ? theme.colors.primary : 'transparent',
                   opacity: disabled ? 0.3 : 1,
                 }}
               >
-                <Text style={{ color: selected ? '#fff' : '#111', fontSize: 13 }}>{Number(dateStr.slice(8, 10))}</Text>
+                <Text style={{ color: selected ? theme.colors.textOnPrimary : theme.colors.textPrimary, fontSize: theme.fontSizes.sm }}>
+                  {Number(dateStr.slice(8, 10))}
+                </Text>
               </View>
             </Pressable>
           );
@@ -415,195 +436,249 @@ export default function Horarios() {
 
   if (!business) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator />
+      <View
+        style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}
+      >
+        <ActivityIndicator color={theme.colors.primary} />
       </View>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 24 }}>
-      <View style={{ gap: 16 }}>
-        <Text style={{ fontSize: 18, fontWeight: '700' }}>Horario semanal</Text>
-        {hoursError && <Text style={{ color: 'crimson' }}>{hoursError}</Text>}
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      <ScrollView
+        contentContainerStyle={{
+          padding: theme.spacing.lg,
+          gap: theme.spacing.lg,
+          width: '100%',
+          maxWidth: theme.layout.panelMaxWidth,
+          alignSelf: 'center',
+        }}
+      >
+        <Card>
+          <Text style={{ ...theme.textStyles.heading2, color: theme.colors.textPrimary, marginBottom: theme.spacing.md }}>
+            Horario semanal
+          </Text>
+          {hoursError && (
+            <Text style={{ ...theme.textStyles.body, color: theme.colors.danger, marginBottom: theme.spacing.sm }}>
+              {hoursError}
+            </Text>
+          )}
 
-        {loadingHours && !hours ? (
-          <ActivityIndicator />
-        ) : (
-          WEEKDAYS.map(({ dow, label }) => {
-            const daySlots = (hours ?? []).filter((h) => h.day_of_week === dow);
-            const isEditingThisDay = editingSlot?.dayOfWeek === dow;
+          {loadingHours && !hours ? (
+            <ActivityIndicator color={theme.colors.primary} />
+          ) : (
+            <View style={{ gap: theme.spacing.lg }}>
+              {WEEKDAYS.map(({ dow, label }) => {
+                const daySlots = (hours ?? []).filter((h) => h.day_of_week === dow);
+                const isEditingThisDay = editingSlot?.dayOfWeek === dow;
 
-            return (
-              <View key={dow} style={{ gap: 8 }}>
-                <Text style={{ fontSize: 15, fontWeight: '600' }}>{label}</Text>
+                return (
+                  <View key={dow} style={{ gap: theme.spacing.sm }}>
+                    <Text style={{ ...theme.textStyles.bodyMedium, color: theme.colors.textPrimary }}>{label}</Text>
 
-                {daySlots.length === 0 && !isEditingThisDay && <Text style={{ color: '#666' }}>Cerrado</Text>}
+                    {daySlots.length === 0 && !isEditingThisDay && (
+                      <Text style={{ ...theme.textStyles.small, color: theme.colors.textSecondary }}>Cerrado</Text>
+                    )}
 
-                {daySlots.map((slot) => (
-                  <View key={slot.id} style={rowStyle}>
-                    <Text>
-                      {slot.start_time.slice(0, 5)}–{slot.end_time.slice(0, 5)}
+                    {daySlots.map((slot) => (
+                      <View key={slot.id} style={chipRowStyle}>
+                        <Text style={{ ...theme.textStyles.body, color: theme.colors.textPrimary }}>
+                          {slot.start_time.slice(0, 5)}–{slot.end_time.slice(0, 5)}
+                        </Text>
+                        <View style={{ flexDirection: 'row', gap: theme.spacing.lg }}>
+                          <Pressable onPress={() => openEditSlot(slot)}>
+                            <Text style={{ ...theme.textStyles.small, color: theme.colors.primary }}>Editar</Text>
+                          </Pressable>
+                          <Pressable onPress={() => handleDeleteSlot(slot)} disabled={deletingSlotId === slot.id}>
+                            <Text style={{ ...theme.textStyles.small, color: theme.colors.danger }}>
+                              {deletingSlotId === slot.id ? '…' : 'Quitar'}
+                            </Text>
+                          </Pressable>
+                        </View>
+                      </View>
+                    ))}
+
+                    {isEditingThisDay ? (
+                      <View
+                        style={{
+                          gap: theme.spacing.sm,
+                          padding: theme.spacing.sm,
+                          borderRadius: theme.radii.md,
+                          backgroundColor: theme.colors.background,
+                        }}
+                      >
+                        <View style={{ flexDirection: 'row', gap: theme.spacing.md }}>
+                          <TimeSelector label="Inicio" value={slotStart} onChange={setSlotStart} />
+                          <TimeSelector label="Fin" value={slotEnd} onChange={setSlotEnd} />
+                        </View>
+                        <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+                          <View style={{ flex: 1 }}>
+                            <Button
+                              label={savingSlot ? 'Guardando…' : 'Guardar'}
+                              onPress={handleSaveSlot}
+                              disabled={!canSubmitSlot}
+                            />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Button label="Cancelar" onPress={closeSlotForm} variant="secondary" />
+                          </View>
+                        </View>
+                        {slotError && (
+                          <Text style={{ ...theme.textStyles.small, color: theme.colors.danger }}>{slotError}</Text>
+                        )}
+                      </View>
+                    ) : (
+                      <Pressable onPress={() => openNewSlot(dow)}>
+                        <Text style={{ ...theme.textStyles.small, fontWeight: theme.fontWeights.semibold, color: theme.colors.primary }}>
+                          + Añadir tramo
+                        </Text>
+                      </Pressable>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          )}
+        </Card>
+
+        <Card>
+          <Text style={{ ...theme.textStyles.heading2, color: theme.colors.textPrimary, marginBottom: theme.spacing.md }}>
+            Excepciones (vacaciones, festivos…)
+          </Text>
+          {exceptionsError && (
+            <Text style={{ ...theme.textStyles.body, color: theme.colors.danger, marginBottom: theme.spacing.sm }}>
+              {exceptionsError}
+            </Text>
+          )}
+
+          {loadingExceptions && !exceptions ? (
+            <ActivityIndicator color={theme.colors.primary} />
+          ) : (
+            <View style={{ gap: theme.spacing.sm, marginBottom: theme.spacing.md }}>
+              {(exceptions ?? []).length === 0 && (
+                <Text style={{ ...theme.textStyles.small, color: theme.colors.textSecondary }}>
+                  No hay excepciones próximas.
+                </Text>
+              )}
+              {(exceptions ?? []).map((exception) => (
+                <View key={exception.id} style={chipRowStyle}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ ...theme.textStyles.bodyMedium, color: theme.colors.textPrimary }}>
+                      {exception.date}
                     </Text>
-                    <View style={{ flexDirection: 'row', gap: 16 }}>
-                      <Pressable onPress={() => openEditSlot(slot)}>
-                        <Text style={{ color: '#666' }}>Editar</Text>
-                      </Pressable>
-                      <Pressable onPress={() => handleDeleteSlot(slot)} disabled={deletingSlotId === slot.id}>
-                        <Text style={{ color: 'crimson' }}>{deletingSlotId === slot.id ? '…' : 'Quitar'}</Text>
-                      </Pressable>
-                    </View>
+                    <Text style={{ ...theme.textStyles.small, color: theme.colors.textSecondary }}>
+                      {exception.start_time && exception.end_time
+                        ? `Cerrado de ${exception.start_time.slice(0, 5)} a ${exception.end_time.slice(0, 5)}`
+                        : 'Cerrado todo el día'}
+                      {exception.reason ? ` — ${exception.reason}` : ''}
+                    </Text>
                   </View>
-                ))}
-
-                {isEditingThisDay ? (
-                  <View style={formBoxStyle}>
-                    <View style={{ flexDirection: 'row', gap: 12 }}>
-                      <TimeSelector label="Inicio" value={slotStart} onChange={setSlotStart} />
-                      <TimeSelector label="Fin" value={slotEnd} onChange={setSlotEnd} />
-                    </View>
-                    <View style={{ flexDirection: 'row', gap: 8 }}>
-                      <Pressable
-                        onPress={handleSaveSlot}
-                        disabled={!canSubmitSlot}
-                        style={{ flex: 1, ...(canSubmitSlot ? buttonStyle : buttonDisabledStyle) }}
-                      >
-                        <Text style={buttonTextStyle}>{savingSlot ? 'Guardando…' : 'Guardar'}</Text>
-                      </Pressable>
-                      <Pressable
-                        onPress={closeSlotForm}
-                        style={{ flex: 1, padding: 14, borderRadius: 8, borderWidth: 1, borderColor: '#ccc' }}
-                      >
-                        <Text style={{ textAlign: 'center' }}>Cancelar</Text>
-                      </Pressable>
-                    </View>
-                    {slotError && <Text style={{ color: 'crimson' }}>{slotError}</Text>}
-                  </View>
-                ) : (
-                  <Pressable onPress={() => openNewSlot(dow)}>
-                    <Text style={{ color: '#111', fontWeight: '600' }}>+ Añadir tramo</Text>
+                  <Pressable
+                    onPress={() => handleDeleteException(exception)}
+                    disabled={deletingExceptionId === exception.id}
+                  >
+                    <Text style={{ ...theme.textStyles.small, color: theme.colors.danger }}>
+                      {deletingExceptionId === exception.id ? '…' : 'Quitar'}
+                    </Text>
                   </Pressable>
-                )}
-              </View>
-            );
-          })
-        )}
-      </View>
-
-      <View style={{ gap: 16 }}>
-        <Text style={{ fontSize: 18, fontWeight: '700' }}>Excepciones (vacaciones, festivos…)</Text>
-        {exceptionsError && <Text style={{ color: 'crimson' }}>{exceptionsError}</Text>}
-
-        {loadingExceptions && !exceptions ? (
-          <ActivityIndicator />
-        ) : (
-          <>
-            {(exceptions ?? []).length === 0 && (
-              <Text style={{ color: '#666' }}>No hay excepciones próximas.</Text>
-            )}
-            {(exceptions ?? []).map((exception) => (
-              <View key={exception.id} style={rowStyle}>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontWeight: '600' }}>{exception.date}</Text>
-                  <Text style={{ color: '#666', fontSize: 13 }}>
-                    {exception.start_time && exception.end_time
-                      ? `Cerrado de ${exception.start_time.slice(0, 5)} a ${exception.end_time.slice(0, 5)}`
-                      : 'Cerrado todo el día'}
-                    {exception.reason ? ` — ${exception.reason}` : ''}
-                  </Text>
                 </View>
+              ))}
+            </View>
+          )}
+
+          {addingException ? (
+            <View style={{ gap: theme.spacing.sm }}>
+              <Text style={{ ...theme.textStyles.small, color: theme.colors.textSecondary }}>Fecha</Text>
+              <MonthCalendar selectedDate={exceptionDate} minDate={today} onSelect={setExceptionDate} />
+
+              <View style={{ flexDirection: 'row', gap: theme.spacing.sm, marginTop: theme.spacing.sm }}>
                 <Pressable
-                  onPress={() => handleDeleteException(exception)}
-                  disabled={deletingExceptionId === exception.id}
+                  onPress={() => setExceptionMode('full')}
+                  style={{
+                    flex: 1,
+                    padding: theme.spacing.sm,
+                    borderRadius: theme.radii.md,
+                    borderWidth: 1,
+                    borderColor: exceptionMode === 'full' ? theme.colors.primary : theme.colors.border,
+                    backgroundColor: exceptionMode === 'full' ? theme.colors.primarySurface : 'transparent',
+                  }}
                 >
-                  <Text style={{ color: 'crimson' }}>
-                    {deletingExceptionId === exception.id ? '…' : 'Quitar'}
+                  <Text
+                    style={{
+                      textAlign: 'center',
+                      ...theme.textStyles.small,
+                      fontWeight: exceptionMode === 'full' ? theme.fontWeights.bold : theme.fontWeights.regular,
+                      color: theme.colors.textPrimary,
+                    }}
+                  >
+                    Cerrado todo el día
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setExceptionMode('partial')}
+                  style={{
+                    flex: 1,
+                    padding: theme.spacing.sm,
+                    borderRadius: theme.radii.md,
+                    borderWidth: 1,
+                    borderColor: exceptionMode === 'partial' ? theme.colors.primary : theme.colors.border,
+                    backgroundColor: exceptionMode === 'partial' ? theme.colors.primarySurface : 'transparent',
+                  }}
+                >
+                  <Text
+                    style={{
+                      textAlign: 'center',
+                      ...theme.textStyles.small,
+                      fontWeight: exceptionMode === 'partial' ? theme.fontWeights.bold : theme.fontWeights.regular,
+                      color: theme.colors.textPrimary,
+                    }}
+                  >
+                    Cerrar solo una franja
                   </Text>
                 </Pressable>
               </View>
-            ))}
-          </>
-        )}
 
-        {addingException ? (
-          <View style={formBoxStyle}>
-            <Text style={{ fontSize: 13, color: '#444' }}>Fecha</Text>
-            <MonthCalendar selectedDate={exceptionDate} minDate={today} onSelect={setExceptionDate} />
+              {exceptionMode === 'partial' && (
+                <View style={{ gap: theme.spacing.sm }}>
+                  <Text style={{ ...theme.textStyles.caption, color: theme.colors.textSecondary }}>
+                    Indica la franja horaria que permanecerá CERRADA ese día — el resto del horario
+                    habitual sigue abierto.
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: theme.spacing.md }}>
+                    <TimeSelector label="Cierra desde" value={exceptionStart} onChange={setExceptionStart} />
+                    <TimeSelector label="Hasta" value={exceptionEnd} onChange={setExceptionEnd} />
+                  </View>
+                </View>
+              )}
 
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-              <Pressable
-                onPress={() => setExceptionMode('full')}
-                style={{
-                  flex: 1,
-                  padding: 10,
-                  borderRadius: 8,
-                  borderWidth: 1,
-                  borderColor: exceptionMode === 'full' ? '#111' : '#ccc',
-                }}
-              >
-                <Text style={{ textAlign: 'center', fontWeight: exceptionMode === 'full' ? '700' : '400' }}>
-                  Cerrado todo el día
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setExceptionMode('partial')}
-                style={{
-                  flex: 1,
-                  padding: 10,
-                  borderRadius: 8,
-                  borderWidth: 1,
-                  borderColor: exceptionMode === 'partial' ? '#111' : '#ccc',
-                }}
-              >
-                <Text style={{ textAlign: 'center', fontWeight: exceptionMode === 'partial' ? '700' : '400' }}>
-                  Cerrar solo una franja
-                </Text>
-              </Pressable>
-            </View>
+              <Input
+                placeholder="Motivo (opcional, se mostrará al cliente)"
+                value={exceptionReason}
+                onChangeText={setExceptionReason}
+              />
 
-            {exceptionMode === 'partial' && (
-              <View style={{ gap: 8 }}>
-                <Text style={{ fontSize: 12, color: '#666' }}>
-                  Indica la franja horaria que permanecerá CERRADA ese día — el resto del horario
-                  habitual sigue abierto.
-                </Text>
-                <View style={{ flexDirection: 'row', gap: 12 }}>
-                  <TimeSelector label="Cierra desde" value={exceptionStart} onChange={setExceptionStart} />
-                  <TimeSelector label="Hasta" value={exceptionEnd} onChange={setExceptionEnd} />
+              <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+                <View style={{ flex: 1 }}>
+                  <Button
+                    label={savingException ? 'Guardando…' : 'Guardar'}
+                    onPress={handleAddException}
+                    disabled={!canSubmitException}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Button label="Cancelar" onPress={closeExceptionForm} variant="secondary" />
                 </View>
               </View>
-            )}
-
-            <TextInput
-              placeholder="Motivo (opcional, se mostrará al cliente)"
-              value={exceptionReason}
-              onChangeText={setExceptionReason}
-              style={inputStyle}
-            />
-
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <Pressable
-                onPress={handleAddException}
-                disabled={!canSubmitException}
-                style={{ flex: 1, ...(canSubmitException ? buttonStyle : buttonDisabledStyle) }}
-              >
-                <Text style={buttonTextStyle}>{savingException ? 'Guardando…' : 'Guardar'}</Text>
-              </Pressable>
-              <Pressable
-                onPress={closeExceptionForm}
-                style={{ flex: 1, padding: 14, borderRadius: 8, borderWidth: 1, borderColor: '#ccc' }}
-              >
-                <Text style={{ textAlign: 'center' }}>Cancelar</Text>
-              </Pressable>
+              {exceptionError && (
+                <Text style={{ ...theme.textStyles.small, color: theme.colors.danger }}>{exceptionError}</Text>
+              )}
             </View>
-            {exceptionError && <Text style={{ color: 'crimson' }}>{exceptionError}</Text>}
-          </View>
-        ) : (
-          <Pressable onPress={openAddException} style={buttonStyle}>
-            <Text style={buttonTextStyle}>Añadir excepción</Text>
-          </Pressable>
-        )}
-      </View>
-    </ScrollView>
+          ) : (
+            <Button label="Añadir excepción" onPress={openAddException} />
+          )}
+        </Card>
+      </ScrollView>
+    </View>
   );
 }

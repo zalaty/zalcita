@@ -1,6 +1,19 @@
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useIsPlatformAdmin } from '@/hooks/useIsPlatformAdmin';
+import { theme } from '@/theme';
+
+const menuRowStyle = {
+  flexDirection: 'row' as const,
+  alignItems: 'center' as const,
+  justifyContent: 'space-between' as const,
+  borderWidth: 1,
+  borderColor: theme.colors.border,
+  borderRadius: theme.radii.md,
+  backgroundColor: theme.colors.surface,
+  padding: theme.spacing.md,
+  ...theme.shadows.sm,
+};
 
 // TODO: añadir más secciones aquí conforme se construyan: Stripe — cada
 // una como su propia pantalla dentro de esta carpeta, enlazada desde
@@ -10,42 +23,46 @@ export default function AjustesMenu() {
   const { isAdmin } = useIsPlatformAdmin();
 
   return (
-    <View style={{ flex: 1, padding: 16 }}>
-      <Pressable
-        onPress={() => router.push('/(business)/ajustes/datos')}
-        style={{ paddingVertical: 16, borderBottomWidth: 1, borderColor: '#eee' }}
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      <ScrollView
+        contentContainerStyle={{
+          padding: theme.spacing.lg,
+          gap: theme.spacing.sm,
+          width: '100%',
+          maxWidth: theme.layout.panelMaxWidth,
+          alignSelf: 'center',
+        }}
       >
-        <Text style={{ fontSize: 16 }}>Datos del negocio</Text>
-      </Pressable>
-      <Pressable
-        onPress={() => router.push('/(business)/ajustes/servicios')}
-        style={{ paddingVertical: 16, borderBottomWidth: 1, borderColor: '#eee' }}
-      >
-        <Text style={{ fontSize: 16 }}>Servicios</Text>
-      </Pressable>
-      <Pressable
-        onPress={() => router.push('/(business)/ajustes/horarios')}
-        style={{ paddingVertical: 16, borderBottomWidth: 1, borderColor: '#eee' }}
-      >
-        <Text style={{ fontSize: 16 }}>Horarios</Text>
-      </Pressable>
-      <Pressable
-        onPress={() => router.push('/(business)/ajustes/politicas')}
-        style={{ paddingVertical: 16, borderBottomWidth: 1, borderColor: '#eee' }}
-      >
-        <Text style={{ fontSize: 16 }}>Políticas de cancelación y pago</Text>
-      </Pressable>
-      {/* Solo visible para quien tenga fila en platform_admins — ver
-          hooks/useIsPlatformAdmin.ts. Es solo un atajo: la pantalla en sí
-          está protegida en app/admin/_layout.tsx pase lo que pase aquí. */}
-      {isAdmin && (
-        <Pressable
-          onPress={() => router.push('/admin')}
-          style={{ paddingVertical: 16, borderBottomWidth: 1, borderColor: '#eee' }}
-        >
-          <Text style={{ fontSize: 16 }}>Administración de plataforma</Text>
+        <Pressable onPress={() => router.push('/(business)/ajustes/datos')} style={menuRowStyle}>
+          <Text style={{ ...theme.textStyles.bodyMedium, color: theme.colors.textPrimary }}>Datos del negocio</Text>
+          <Text style={{ color: theme.colors.textMuted, fontSize: theme.fontSizes.lg }}>›</Text>
         </Pressable>
-      )}
+        <Pressable onPress={() => router.push('/(business)/ajustes/servicios')} style={menuRowStyle}>
+          <Text style={{ ...theme.textStyles.bodyMedium, color: theme.colors.textPrimary }}>Servicios</Text>
+          <Text style={{ color: theme.colors.textMuted, fontSize: theme.fontSizes.lg }}>›</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push('/(business)/ajustes/horarios')} style={menuRowStyle}>
+          <Text style={{ ...theme.textStyles.bodyMedium, color: theme.colors.textPrimary }}>Horarios</Text>
+          <Text style={{ color: theme.colors.textMuted, fontSize: theme.fontSizes.lg }}>›</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push('/(business)/ajustes/politicas')} style={menuRowStyle}>
+          <Text style={{ ...theme.textStyles.bodyMedium, color: theme.colors.textPrimary }}>
+            Políticas de cancelación y pago
+          </Text>
+          <Text style={{ color: theme.colors.textMuted, fontSize: theme.fontSizes.lg }}>›</Text>
+        </Pressable>
+        {/* Solo visible para quien tenga fila en platform_admins — ver
+            hooks/useIsPlatformAdmin.ts. Es solo un atajo: la pantalla en sí
+            está protegida en app/admin/_layout.tsx pase lo que pase aquí. */}
+        {isAdmin && (
+          <Pressable onPress={() => router.push('/admin')} style={menuRowStyle}>
+            <Text style={{ ...theme.textStyles.bodyMedium, color: theme.colors.textPrimary }}>
+              Administración de plataforma
+            </Text>
+            <Text style={{ color: theme.colors.textMuted, fontSize: theme.fontSizes.lg }}>›</Text>
+          </Pressable>
+        )}
+      </ScrollView>
     </View>
   );
 }

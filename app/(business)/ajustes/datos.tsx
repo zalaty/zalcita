@@ -1,14 +1,9 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, TextInput, View, Pressable } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { useBusiness } from '@/context/BusinessContext';
-
-const inputStyle = { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12 };
-const buttonStyle = { backgroundColor: '#111', padding: 14, borderRadius: 8 };
-const buttonDisabledStyle = { ...buttonStyle, backgroundColor: '#ccc' };
-const buttonTextStyle = { color: '#fff', textAlign: 'center' as const, fontWeight: '600' as const };
-const sectionTitleStyle = { fontSize: 16, fontWeight: '700' as const };
-const noteStyle = { fontSize: 12, color: '#666' };
+import { theme } from '@/theme';
+import { Button, Card, Input } from '@/components/ui';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -69,51 +64,68 @@ export default function DatosNegocio() {
 
   if (!business) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator />
+      <View
+        style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}
+      >
+        <ActivityIndicator color={theme.colors.primary} />
       </View>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 20 }}>
-      <View style={{ gap: 12 }}>
-        <Text style={sectionTitleStyle}>Datos del negocio</Text>
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      <ScrollView
+        contentContainerStyle={{
+          padding: theme.spacing.lg,
+          gap: theme.spacing.lg,
+          width: '100%',
+          maxWidth: theme.layout.panelMaxWidth,
+          alignSelf: 'center',
+        }}
+      >
+        <Card>
+          <Text style={{ ...theme.textStyles.heading2, color: theme.colors.textPrimary, marginBottom: theme.spacing.md }}>
+            Datos del negocio
+          </Text>
 
-        <TextInput placeholder="Nombre del negocio" value={name} onChangeText={setName} style={inputStyle} />
-        <TextInput
-          placeholder="Teléfono"
-          value={phone}
-          onChangeText={setPhone}
-          keyboardType="phone-pad"
-          style={inputStyle}
-        />
-        <TextInput
-          placeholder="Email"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          style={inputStyle}
-        />
-        <TextInput placeholder="Dirección" value={address} onChangeText={setAddress} style={inputStyle} />
-      </View>
+          <View style={{ gap: theme.spacing.md }}>
+            <Input placeholder="Nombre del negocio" value={name} onChangeText={setName} />
+            <Input placeholder="Teléfono" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+            <Input
+              placeholder="Email"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+            <Input placeholder="Dirección" value={address} onChangeText={setAddress} />
+          </View>
 
-      <View style={{ gap: 4 }}>
-        <Text style={{ fontSize: 13, color: '#444' }}>Tu enlace de reservas</Text>
-        <Text style={{ fontSize: 14, fontWeight: '600' }}>app.zalaty.com/{business.slug}</Text>
-        <Text style={noteStyle}>
-          No se puede cambiar: es la dirección pública que ya puedes haber compartido (enlace o QR). Cambiarla
-          rompería los que ya existen.
-        </Text>
-      </View>
+          <View
+            style={{
+              gap: theme.spacing.xs,
+              marginTop: theme.spacing.lg,
+              paddingTop: theme.spacing.lg,
+              borderTopWidth: 1,
+              borderColor: theme.colors.border,
+            }}
+          >
+            <Text style={{ ...theme.textStyles.small, color: theme.colors.textSecondary }}>Tu enlace de reservas</Text>
+            <Text style={{ ...theme.textStyles.bodyMedium, color: theme.colors.textPrimary }}>
+              app.zalaty.com/{business.slug}
+            </Text>
+            <Text style={{ ...theme.textStyles.caption, color: theme.colors.textMuted }}>
+              No se puede cambiar: es la dirección pública que ya puedes haber compartido (enlace o QR). Cambiarla
+              rompería los que ya existen.
+            </Text>
+          </View>
+        </Card>
 
-      <Pressable onPress={handleSave} disabled={!canSave} style={canSave ? buttonStyle : buttonDisabledStyle}>
-        <Text style={buttonTextStyle}>{saving ? 'Guardando…' : 'Guardar'}</Text>
-      </Pressable>
+        <Button label={saving ? 'Guardando…' : 'Guardar'} onPress={handleSave} disabled={!canSave} />
 
-      {saveSuccess && <Text style={{ color: '#15803d' }}>Guardado.</Text>}
-      {saveError && <Text style={{ color: 'crimson' }}>{saveError}</Text>}
-    </ScrollView>
+        {saveSuccess && <Text style={{ ...theme.textStyles.body, color: theme.colors.success }}>Guardado.</Text>}
+        {saveError && <Text style={{ ...theme.textStyles.body, color: theme.colors.danger }}>{saveError}</Text>}
+      </ScrollView>
+    </View>
   );
 }
