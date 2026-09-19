@@ -1,7 +1,8 @@
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useIsPlatformAdmin } from '@/hooks/useIsPlatformAdmin';
 import { theme } from '@/theme';
+import { Screen } from '@/components/ui';
 
 const menuRowStyle = {
   flexDirection: 'row' as const,
@@ -23,7 +24,7 @@ export default function AjustesMenu() {
   const { isAdmin } = useIsPlatformAdmin();
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+    <Screen>
       <ScrollView
         contentContainerStyle={{
           padding: theme.spacing.lg,
@@ -33,6 +34,10 @@ export default function AjustesMenu() {
           alignSelf: 'center',
         }}
       >
+        <Text accessibilityRole="header" style={{ ...theme.textStyles.heading1, color: theme.colors.textPrimary }}>
+          Ajustes
+        </Text>
+
         <Pressable onPress={() => router.push('/(business)/ajustes/datos')} style={menuRowStyle}>
           <Text style={{ ...theme.textStyles.bodyMedium, color: theme.colors.textPrimary }}>Datos del negocio</Text>
           <Text style={{ color: theme.colors.textMuted, fontSize: theme.fontSizes.lg }}>›</Text>
@@ -63,6 +68,6 @@ export default function AjustesMenu() {
           </Pressable>
         )}
       </ScrollView>
-    </View>
+    </Screen>
   );
 }

@@ -4,7 +4,7 @@ import { useFocusEffect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useBusiness } from '@/context/BusinessContext';
 import { theme } from '@/theme';
-import { Button, Card, Input } from '@/components/ui';
+import { Button, Card, Input, Screen } from '@/components/ui';
 import type { PaymentPolicy } from '@/types/database';
 
 type PenaltyType = 'none' | 'deposit_loss' | 'fixed_fee';
@@ -203,16 +203,14 @@ export default function Politicas() {
 
   if (!business) {
     return (
-      <View
-        style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}
-      >
+      <Screen style={{ alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator color={theme.colors.primary} />
-      </View>
+      </Screen>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+    <Screen>
       <ScrollView
         contentContainerStyle={{
           padding: theme.spacing.lg,
@@ -222,6 +220,10 @@ export default function Politicas() {
           alignSelf: 'center',
         }}
       >
+        <Text accessibilityRole="header" style={{ ...theme.textStyles.heading1, color: theme.colors.textPrimary }}>
+          Políticas
+        </Text>
+
         {loading && (
           <View style={{ alignItems: 'center' }}>
             <ActivityIndicator color={theme.colors.primary} />
@@ -349,6 +351,6 @@ export default function Politicas() {
         {saveError && <Text style={{ ...theme.textStyles.body, color: theme.colors.danger }}>{saveError}</Text>}
         {loadError && <Text style={{ ...theme.textStyles.body, color: theme.colors.danger }}>{loadError}</Text>}
       </ScrollView>
-    </View>
+    </Screen>
   );
 }

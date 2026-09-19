@@ -1,18 +1,40 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useBusiness } from '@/context/BusinessContext';
-import { fetchClientAppointmentHistory, STATUS_COLORS, STATUS_LABELS, type ClientHistoryAppointment } from '@/lib/appointments';
+import { theme } from '@/theme';
+import { Badge, Button, Card, Input, Screen, type BadgeTone } from '@/components/ui';
+import { fetchClientAppointmentHistory, STATUS_LABELS, type ClientHistoryAppointment } from '@/lib/appointments';
 import { formatLongDateInZone, formatTimeInZone } from '@/lib/timezone';
+import type { AppointmentStatus } from '@/types/database';
 
-const inputStyle = { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12 };
-const buttonStyle = { backgroundColor: '#111', padding: 14, borderRadius: 8 };
-const buttonDisabledStyle = { ...buttonStyle, backgroundColor: '#ccc' };
-const buttonTextStyle = { color: '#fff', textAlign: 'center' as const, fontWeight: '600' as const };
-const cardStyle = { padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#eee', gap: 4 };
-const statBoxStyle = { flex: 1, padding: 12, borderRadius: 8, backgroundColor: '#f7f7f7', gap: 4 };
-const sectionTitleStyle = { fontSize: 16, fontWeight: '700' as const };
+// Verde de marca de WhatsApp, NO un token del sistema a propósito: es la
+// marca reconocible de un tercero (como un botón "Entrar con Google"), no
+// un color de nuestra paleta — solo se le aplica la forma/tipografía del
+// sistema, no se recolorea a teal.
+const WHATSAPP_GREEN = '#25D366';
+
+// Mapeo estado de cita -> tono de Badge, LOCAL a esta pantalla a propósito
+// (fase 2 del rediseño se hace pantalla a pantalla). Es el mismo reparto
+// que appointmentStatusColors en theme/colors.ts (pending=warning,
+// confirmed=success, completed=info, cancelled=neutral, no_show=danger).
+//
+// TODO al rediseñar app/(business)/calendario.tsx (tanda b): unificar en un
+// solo sitio compartido. Hoy hay TRES copias de este mapeo que coinciden
+// pero podrían divergir si alguien cambia solo una:
+//   - app/(client)/mis-citas.tsx
+//   - app/(business)/cliente/[id].tsx (aquí)
+//   - app/(business)/calendario.tsx — esta todavía sin Badge: sigue usando
+//     STATUS_COLORS/STATUS_LABELS de lib/appointments.ts como color literal
+//     directo, pasará a este mismo mapeo cuando se rediseñe.
+const STATUS_BADGE_TONES: Record<AppointmentStatus, BadgeTone> = {
+  pending: 'warning',
+  confirmed: 'success',
+  completed: 'info',
+  cancelled: 'neutral',
+  no_show: 'danger',
+};
 
 interface ClientProfile {
   id: string;
@@ -124,17 +146,19 @@ export default function ClienteFicha() {
 
   if (!business || loading) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator />
-      </View>
+      <Screen style={{ alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color={theme.colors.primary} />
+      </Screen>
     );
   }
 
   if (loadError || !client) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        <Text style={{ color: 'crimson' }}>{loadError ?? 'No se encontró el cliente.'}</Text>
-      </View>
+      <Screen style={{ alignItems: 'center', justifyContent: 'center', padding: theme.spacing.xl }}>
+        <Text style={{ ...theme.textStyles.body, color: theme.colors.danger, textAlign: 'center' }}>
+          {loadError ?? 'No se encontró el cliente.'}
+        </Text>
+      </Screen>
     );
   }
 
@@ -150,119 +174,201 @@ export default function ClienteFicha() {
   const whatsapp = normalizePhoneForWhatsApp(client.phone);
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 24 }}>
-      <Pressable onPress={() => router.back()}>
-        <Text style={{ color: '#666' }}>‹ Volver a clientes</Text>
-      </Pressable>
-
-      <View style={{ gap: 4 }}>
-        <Text style={{ fontSize: 20, fontWeight: '700' }}>{client.name}</Text>
-        <Text style={{ fontSize: 14, color: '#444' }}>{client.phone}</Text>
-        {client.email && <Text style={{ fontSize: 14, color: '#444' }}>{client.email}</Text>}
-      </View>
-
-      {whatsapp.valid ? (
-        <Pressable
-          onPress={() => Linking.openURL(`https://wa.me/${whatsapp.number}`)}
-          style={{ backgroundColor: '#25D366', padding: 14, borderRadius: 8 }}
-        >
-          <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '600' }}>Contactar por WhatsApp</Text>
+    <Screen>
+      <ScrollView
+        contentContainerStyle={{
+          padding: theme.spacing.lg,
+          gap: theme.spacing.lg,
+          width: '100%',
+          maxWidth: theme.layout.panelMaxWidth,
+          alignSelf: 'center',
+        }}
+      >
+        {/* Navegación EXPLÍCITA, nunca router.back(): esta pantalla también
+            se puede abrir en otros contextos futuros, y "atrás" en un stack
+            montado sobre tabs puede caer en la pestaña por defecto
+            (Calendario) en vez de en la lista de clientes — bug real,
+            confirmado en vivo. replace() además no acumula historial. */}
+        <Pressable onPress={() => router.replace('/(business)/clientes')}>
+          <Text style={{ ...theme.textStyles.small, color: theme.colors.primary }}>‹ Volver a clientes</Text>
         </Pressable>
-      ) : (
-        <Text style={{ fontSize: 13, color: '#666' }}>
-          El teléfono no tiene un formato válido para abrir WhatsApp directamente — el número sigue visible arriba
-          para marcarlo a mano.
-        </Text>
-      )}
 
-      <View style={{ flexDirection: 'row', gap: 8 }}>
-        <View style={statBoxStyle}>
-          <Text style={{ fontSize: 20, fontWeight: '700' }}>{completed.length}</Text>
-          <Text style={{ fontSize: 12, color: '#666' }}>Citas completadas</Text>
-        </View>
-        <View style={statBoxStyle}>
-          <Text style={{ fontSize: 20, fontWeight: '700' }}>{spent.toFixed(2)} €</Text>
-          <Text style={{ fontSize: 12, color: '#666' }}>Gastado</Text>
-        </View>
-        <View style={statBoxStyle}>
-          <Text style={{ fontSize: 20, fontWeight: '700' }}>{expected.toFixed(2)} €</Text>
-          <Text style={{ fontSize: 12, color: '#666' }}>Previsto</Text>
-        </View>
-      </View>
-
-      {nextAppointment && (
-        <View style={{ ...cardStyle, backgroundColor: '#eff6ff', borderColor: '#bfdbfe' }}>
-          <Text style={{ fontSize: 13, fontWeight: '600' }}>Próxima cita</Text>
-          <Text style={{ fontSize: 14 }}>
-            {formatLongDateInZone(new Date(nextAppointment.start_time), business.timezone)} ·{' '}
-            {formatTimeInZone(new Date(nextAppointment.start_time), business.timezone)} · {nextAppointment.serviceName}
-          </Text>
-        </View>
-      )}
-
-      <View style={{ gap: 8 }}>
-        <Text style={sectionTitleStyle}>Notas internas</Text>
-        {editingNotes ? (
-          <View style={{ gap: 8 }}>
-            <TextInput
-              value={notesDraft}
-              onChangeText={setNotesDraft}
-              multiline
-              numberOfLines={4}
-              style={{ ...inputStyle, minHeight: 100, textAlignVertical: 'top' }}
-              placeholder="Notas visibles solo para el negocio"
-            />
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <Pressable
-                onPress={handleSaveNotes}
-                disabled={savingNotes}
-                style={{ flex: 1, ...(savingNotes ? buttonDisabledStyle : buttonStyle) }}
-              >
-                <Text style={buttonTextStyle}>{savingNotes ? 'Guardando…' : 'Guardar'}</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setEditingNotes(false)}
-                disabled={savingNotes}
-                style={{ flex: 1, padding: 14, borderRadius: 8, borderWidth: 1, borderColor: '#ccc' }}
-              >
-                <Text style={{ textAlign: 'center' }}>Cancelar</Text>
-              </Pressable>
-            </View>
-            {notesError && <Text style={{ color: 'crimson' }}>{notesError}</Text>}
+        <Card>
+          <View style={{ gap: theme.spacing.xs, marginBottom: theme.spacing.md }}>
+            <Text style={{ ...theme.textStyles.heading1, color: theme.colors.textPrimary }}>{client.name}</Text>
+            <Text style={{ ...theme.textStyles.body, color: theme.colors.textSecondary }}>{client.phone}</Text>
+            {client.email && (
+              <Text style={{ ...theme.textStyles.body, color: theme.colors.textSecondary }}>{client.email}</Text>
+            )}
           </View>
-        ) : (
-          <View style={{ gap: 8 }}>
-            <Text style={{ color: client.notes ? '#111' : '#666' }}>{client.notes || 'Sin notas todavía.'}</Text>
-            <Pressable onPress={openEditNotes}>
-              <Text style={{ color: '#1d4ed8', fontWeight: '600' }}>Editar notas</Text>
+
+          {whatsapp.valid ? (
+            <Pressable
+              onPress={() => Linking.openURL(`https://wa.me/${whatsapp.number}`)}
+              style={{
+                backgroundColor: WHATSAPP_GREEN,
+                padding: theme.spacing.md,
+                borderRadius: theme.radii.md,
+                marginBottom: theme.spacing.md,
+              }}
+            >
+              <Text style={{ ...theme.textStyles.bodyMedium, color: theme.colors.textOnPrimary, textAlign: 'center' }}>
+                Contactar por WhatsApp
+              </Text>
             </Pressable>
-          </View>
-        )}
-      </View>
+          ) : (
+            <Text style={{ ...theme.textStyles.small, color: theme.colors.textSecondary, marginBottom: theme.spacing.md }}>
+              El teléfono no tiene un formato válido para abrir WhatsApp directamente — el número sigue visible arriba
+              para marcarlo a mano.
+            </Text>
+          )}
 
-      <View style={{ gap: 8 }}>
-        <Text style={sectionTitleStyle}>Historial de citas</Text>
-        {(history ?? []).length === 0 ? (
-          <Text style={{ color: '#666' }}>Todavía no tiene citas.</Text>
-        ) : (
-          (history ?? []).map((a) => (
-            <View key={a.id} style={cardStyle}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={{ fontSize: 14, fontWeight: '600' }}>
-                  {formatLongDateInZone(new Date(a.start_time), business.timezone)} ·{' '}
-                  {formatTimeInZone(new Date(a.start_time), business.timezone)}
-                </Text>
-                <Text style={{ fontSize: 12, fontWeight: '600', color: STATUS_COLORS[a.status] }}>
-                  {STATUS_LABELS[a.status]}
-                </Text>
-              </View>
-              <Text style={{ fontSize: 13, color: '#666' }}>
-                {a.serviceName} · {a.price_at_booking} €
+          <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+            <View
+              style={{
+                flex: 1,
+                padding: theme.spacing.md,
+                borderRadius: theme.radii.md,
+                borderWidth: 1,
+                borderColor: theme.colors.border,
+                backgroundColor: theme.colors.surface,
+                ...theme.shadows.sm,
+                gap: theme.spacing.xs,
+              }}
+            >
+              <Text style={{ ...theme.textStyles.heading2, color: theme.colors.textPrimary }}>{completed.length}</Text>
+              <Text style={{ ...theme.textStyles.caption, color: theme.colors.textSecondary }}>Citas completadas</Text>
+            </View>
+            <View
+              style={{
+                flex: 1,
+                padding: theme.spacing.md,
+                borderRadius: theme.radii.md,
+                borderWidth: 1,
+                borderColor: theme.colors.border,
+                backgroundColor: theme.colors.surface,
+                ...theme.shadows.sm,
+                gap: theme.spacing.xs,
+              }}
+            >
+              <Text style={{ ...theme.textStyles.heading2, color: theme.colors.textPrimary }}>{spent.toFixed(2)} €</Text>
+              <Text style={{ ...theme.textStyles.caption, color: theme.colors.textSecondary }}>Gastado</Text>
+            </View>
+            <View
+              style={{
+                flex: 1,
+                padding: theme.spacing.md,
+                borderRadius: theme.radii.md,
+                borderWidth: 1,
+                borderColor: theme.colors.border,
+                backgroundColor: theme.colors.surface,
+                ...theme.shadows.sm,
+                gap: theme.spacing.xs,
+              }}
+            >
+              <Text style={{ ...theme.textStyles.heading2, color: theme.colors.textPrimary }}>{expected.toFixed(2)} €</Text>
+              <Text style={{ ...theme.textStyles.caption, color: theme.colors.textSecondary }}>Previsto</Text>
+            </View>
+          </View>
+
+          {nextAppointment && (
+            <View
+              style={{
+                marginTop: theme.spacing.md,
+                padding: theme.spacing.md,
+                borderRadius: theme.radii.md,
+                borderWidth: 1,
+                borderColor: theme.colors.info,
+                backgroundColor: theme.colors.infoSurface,
+                gap: theme.spacing.xs,
+              }}
+            >
+              <Text style={{ ...theme.textStyles.small, fontWeight: theme.fontWeights.semibold, color: theme.colors.info }}>
+                Próxima cita
+              </Text>
+              <Text style={{ ...theme.textStyles.body, color: theme.colors.textPrimary }}>
+                {formatLongDateInZone(new Date(nextAppointment.start_time), business.timezone)} ·{' '}
+                {formatTimeInZone(new Date(nextAppointment.start_time), business.timezone)} · {nextAppointment.serviceName}
               </Text>
             </View>
-          ))
-        )}
-      </View>
-    </ScrollView>
+          )}
+        </Card>
+
+        <Card>
+          <Text style={{ ...theme.textStyles.heading2, color: theme.colors.textPrimary, marginBottom: theme.spacing.md }}>
+            Notas internas
+          </Text>
+          {editingNotes ? (
+            <View style={{ gap: theme.spacing.sm }}>
+              <Input
+                value={notesDraft}
+                onChangeText={setNotesDraft}
+                multiline
+                numberOfLines={4}
+                style={{ minHeight: 100, textAlignVertical: 'top' }}
+                placeholder="Notas visibles solo para el negocio"
+              />
+              <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+                <View style={{ flex: 1 }}>
+                  <Button label={savingNotes ? 'Guardando…' : 'Guardar'} onPress={handleSaveNotes} disabled={savingNotes} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Button label="Cancelar" onPress={() => setEditingNotes(false)} disabled={savingNotes} variant="secondary" />
+                </View>
+              </View>
+              {notesError && <Text style={{ ...theme.textStyles.small, color: theme.colors.danger }}>{notesError}</Text>}
+            </View>
+          ) : (
+            <View style={{ gap: theme.spacing.sm }}>
+              <Text style={{ ...theme.textStyles.body, color: client.notes ? theme.colors.textPrimary : theme.colors.textSecondary }}>
+                {client.notes || 'Sin notas todavía.'}
+              </Text>
+              <Pressable onPress={openEditNotes}>
+                <Text style={{ ...theme.textStyles.small, fontWeight: theme.fontWeights.semibold, color: theme.colors.primary }}>
+                  Editar notas
+                </Text>
+              </Pressable>
+            </View>
+          )}
+        </Card>
+
+        <Card>
+          <Text style={{ ...theme.textStyles.heading2, color: theme.colors.textPrimary, marginBottom: theme.spacing.md }}>
+            Historial de citas
+          </Text>
+          {(history ?? []).length === 0 ? (
+            <Text style={{ ...theme.textStyles.body, color: theme.colors.textSecondary }}>Todavía no tiene citas.</Text>
+          ) : (
+            <View style={{ gap: theme.spacing.sm }}>
+              {(history ?? []).map((a) => (
+                <View
+                  key={a.id}
+                  style={{
+                    padding: theme.spacing.md,
+                    borderRadius: theme.radii.md,
+                    borderWidth: 1,
+                    borderColor: theme.colors.border,
+                    backgroundColor: theme.colors.surface,
+                    ...theme.shadows.sm,
+                    gap: theme.spacing.xs,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <Text style={{ ...theme.textStyles.bodyMedium, color: theme.colors.textPrimary }}>
+                      {formatLongDateInZone(new Date(a.start_time), business.timezone)} ·{' '}
+                      {formatTimeInZone(new Date(a.start_time), business.timezone)}
+                    </Text>
+                    <Badge label={STATUS_LABELS[a.status]} tone={STATUS_BADGE_TONES[a.status]} />
+                  </View>
+                  <Text style={{ ...theme.textStyles.small, color: theme.colors.textSecondary }}>
+                    {a.serviceName} · {a.price_at_booking} €
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </Card>
+      </ScrollView>
+    </Screen>
   );
 }

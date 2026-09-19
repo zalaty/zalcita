@@ -4,19 +4,24 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { theme } from '@/theme';
-import { Badge, Button, Card, type BadgeTone } from '@/components/ui';
+import { Badge, Button, Card, Screen, type BadgeTone } from '@/components/ui';
 import { fetchClientAppointments, STATUS_LABELS, type ClientAppointmentDetails } from '@/lib/appointments';
 import { formatLongDateInZone, formatTimeInZone } from '@/lib/timezone';
 import type { AppointmentStatus } from '@/types/database';
 
 // Mapeo estado de cita -> tono de Badge, LOCAL a esta pantalla a propósito
-// (fase 2 del rediseño solo toca el lado cliente). Es el mismo reparto que
-// appointmentStatusColors en theme/colors.ts (pending=warning,
+// (fase 2 del rediseño se hace pantalla a pantalla). Es el mismo reparto
+// que appointmentStatusColors en theme/colors.ts (pending=warning,
 // confirmed=success, completed=info, cancelled=neutral, no_show=danger).
-// TODO cuando se rediseñe el calendario del negocio (lib/appointments.ts
-// STATUS_COLORS/STATUS_LABELS, calendario.tsx): unificar este mapeo en un
-// solo sitio compartido — dos mapeos separados que hoy coinciden podrían
-// divergir con el tiempo si alguien cambia solo uno de los dos.
+//
+// TODO al rediseñar app/(business)/calendario.tsx (tanda b): unificar en un
+// solo sitio compartido. Hoy hay TRES copias de este mapeo que coinciden
+// pero podrían divergir si alguien cambia solo una:
+//   - app/(client)/mis-citas.tsx (aquí)
+//   - app/(business)/cliente/[id].tsx
+//   - app/(business)/calendario.tsx — esta todavía sin Badge: sigue usando
+//     STATUS_COLORS/STATUS_LABELS de lib/appointments.ts como color literal
+//     directo, pasará a este mismo mapeo cuando se rediseñe.
 const STATUS_BADGE_TONES: Record<AppointmentStatus, BadgeTone> = {
   pending: 'warning',
   confirmed: 'success',
@@ -96,41 +101,28 @@ export default function MisCitas() {
 
   if (authLoading) {
     return (
-      <View
-        style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}
-      >
+      <Screen style={{ alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator color={theme.colors.primary} />
-      </View>
+      </Screen>
     );
   }
 
   if (!session) {
     return (
-      <View
-        style={{
-          flex: 1,
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: theme.spacing.xl,
-          gap: theme.spacing.lg,
-          backgroundColor: theme.colors.background,
-        }}
-      >
+      <Screen style={{ alignItems: 'center', justifyContent: 'center', padding: theme.spacing.xl, gap: theme.spacing.lg }}>
         <Text style={{ ...theme.textStyles.body, color: theme.colors.textPrimary, textAlign: 'center' }}>
           Inicia sesión para ver tus citas.
         </Text>
         <Button label="Iniciar sesión" onPress={() => router.push('/(auth)/login')} />
-      </View>
+      </Screen>
     );
   }
 
   if (loading && !appointments) {
     return (
-      <View
-        style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}
-      >
+      <Screen style={{ alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator color={theme.colors.primary} />
-      </View>
+      </Screen>
     );
   }
 
@@ -207,37 +199,43 @@ export default function MisCitas() {
   }
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: theme.colors.background }}
-      contentContainerStyle={{
-        padding: theme.spacing.lg,
-        gap: theme.spacing.xl,
-        width: '100%',
-        maxWidth: theme.layout.contentMaxWidth,
-        alignSelf: 'center',
-      }}
-    >
-      <View style={{ gap: theme.spacing.md }}>
-        <Text style={{ ...theme.textStyles.heading2, color: theme.colors.textPrimary }}>Próximas citas</Text>
-        {upcoming.length === 0 ? (
-          <Text style={{ ...theme.textStyles.body, color: theme.colors.textSecondary }}>No tienes citas próximas.</Text>
-        ) : (
-          upcoming.map((a) => renderAppointment(a, true))
-        )}
-      </View>
+    <Screen>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          padding: theme.spacing.lg,
+          gap: theme.spacing.xl,
+          width: '100%',
+          maxWidth: theme.layout.contentMaxWidth,
+          alignSelf: 'center',
+        }}
+      >
+        <Text accessibilityRole="header" style={{ ...theme.textStyles.heading1, color: theme.colors.textPrimary }}>
+          Mis citas
+        </Text>
 
-      <View style={{ gap: theme.spacing.md }}>
-        <Text style={{ ...theme.textStyles.heading2, color: theme.colors.textPrimary }}>Historial</Text>
-        {past.length === 0 ? (
-          <Text style={{ ...theme.textStyles.body, color: theme.colors.textSecondary }}>
-            Todavía no tienes citas pasadas.
-          </Text>
-        ) : (
-          past.map((a) => renderAppointment(a, false))
-        )}
-      </View>
+        <View style={{ gap: theme.spacing.md }}>
+          <Text style={{ ...theme.textStyles.heading2, color: theme.colors.textPrimary }}>Próximas citas</Text>
+          {upcoming.length === 0 ? (
+            <Text style={{ ...theme.textStyles.body, color: theme.colors.textSecondary }}>No tienes citas próximas.</Text>
+          ) : (
+            upcoming.map((a) => renderAppointment(a, true))
+          )}
+        </View>
 
-      {listError && <Text style={{ ...theme.textStyles.body, color: theme.colors.danger }}>{listError}</Text>}
-    </ScrollView>
+        <View style={{ gap: theme.spacing.md }}>
+          <Text style={{ ...theme.textStyles.heading2, color: theme.colors.textPrimary }}>Historial</Text>
+          {past.length === 0 ? (
+            <Text style={{ ...theme.textStyles.body, color: theme.colors.textSecondary }}>
+              Todavía no tienes citas pasadas.
+            </Text>
+          ) : (
+            past.map((a) => renderAppointment(a, false))
+          )}
+        </View>
+
+        {listError && <Text style={{ ...theme.textStyles.body, color: theme.colors.danger }}>{listError}</Text>}
+      </ScrollView>
+    </Screen>
   );
 }

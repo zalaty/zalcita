@@ -3,7 +3,7 @@ import { ActivityIndicator, FlatList, Pressable, ScrollView, Text, View, useWind
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { theme } from '@/theme';
-import { Card } from '@/components/ui';
+import { Card, Screen } from '@/components/ui';
 import type { Service } from '@/types/database';
 
 // Punto de entrada del cliente: app.zalaty.com/{slug} en web, o deep link
@@ -46,29 +46,19 @@ export default function ClientHome() {
 
   if (!slug) {
     return (
-      <View
-        style={{
-          flex: 1,
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: theme.spacing.xl,
-          backgroundColor: theme.colors.background,
-        }}
-      >
+      <Screen style={{ alignItems: 'center', justifyContent: 'center', padding: theme.spacing.xl }}>
         <Text style={{ ...theme.textStyles.body, color: theme.colors.textSecondary, textAlign: 'center' }}>
           Accede desde el enlace o QR de tu negocio para ver su disponibilidad.
         </Text>
-      </View>
+      </Screen>
     );
   }
 
   if (loading) {
     return (
-      <View
-        style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}
-      >
+      <Screen style={{ alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator color={theme.colors.primary} />
-      </View>
+      </Screen>
     );
   }
 
@@ -76,7 +66,7 @@ export default function ClientHome() {
   const businessInitial = (businessName ?? '?').trim().charAt(0).toUpperCase() || '?';
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+    <Screen>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{
@@ -176,6 +166,6 @@ export default function ClientHome() {
           />
         </Card>
       </ScrollView>
-    </View>
+    </Screen>
   );
 }

@@ -3,6 +3,8 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-nati
 import { useFocusEffect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useBusiness } from '@/context/BusinessContext';
+import { theme } from '@/theme';
+import { Card, Screen } from '@/components/ui';
 import {
   addMonthsToMonthStr,
   currentMonthStrInZone,
@@ -10,10 +12,6 @@ import {
   monthRangeUtc,
   todayDateStrInZone,
 } from '@/lib/timezone';
-
-const sectionTitleStyle = { fontSize: 16, fontWeight: '700' as const };
-const statBoxStyle = { flex: 1, padding: 12, borderRadius: 8, backgroundColor: '#f7f7f7', gap: 4 };
-const cardStyle = { padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#eee', gap: 12 };
 
 interface PeriodRow {
   service_id: string;
@@ -37,6 +35,30 @@ function computeComparison(current: number, previous: number): Comparison {
   if (previous === 0 && current === 0) return { kind: 'no-data' };
   if (previous === 0) return { kind: 'no-previous' };
   return { kind: 'percent', value: ((current - previous) / previous) * 100 };
+}
+
+// Caja de estadística compartida por las 4 cifras de cabecera — borde+
+// sombra sutil para que se distingan de la Card blanca que las contiene
+// (misma lección que el resto del sistema: sombra sola no basta cuando
+// caja y contenedor comparten el mismo blanco).
+function StatBox({ value, label }: { value: string; label: string }) {
+  return (
+    <View
+      style={{
+        flex: 1,
+        padding: theme.spacing.md,
+        borderRadius: theme.radii.md,
+        borderWidth: 1,
+        borderColor: theme.colors.border,
+        backgroundColor: theme.colors.surface,
+        ...theme.shadows.sm,
+        gap: theme.spacing.xs,
+      }}
+    >
+      <Text style={{ ...theme.textStyles.heading2, color: theme.colors.textPrimary }}>{value}</Text>
+      <Text style={{ ...theme.textStyles.caption, color: theme.colors.textSecondary }}>{label}</Text>
+    </View>
+  );
 }
 
 // "Ingresos por citas", no caja contable: price_at_booking es el valor de
@@ -160,9 +182,9 @@ export default function Resumen() {
 
   if (!business || !monthStr) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator />
-      </View>
+      <Screen style={{ alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color={theme.colors.primary} />
+      </Screen>
     );
   }
 
@@ -170,9 +192,9 @@ export default function Resumen() {
 
   if (loading && !summary) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator />
-      </View>
+      <Screen style={{ alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color={theme.colors.primary} />
+      </Screen>
     );
   }
 
@@ -182,114 +204,151 @@ export default function Resumen() {
   const maxService = summary && summary.serviceBreakdown.length > 0 ? Math.max(...summary.serviceBreakdown.map((s) => s.total), 1) : 1;
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 24 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <Pressable onPress={() => setMonthStr((m) => addMonthsToMonthStr(m, -1))} style={{ padding: 8 }}>
-          <Text style={{ fontSize: 18 }}>‹</Text>
-        </Pressable>
-        <Text style={{ flex: 1, textAlign: 'center', fontSize: 16, fontWeight: '600', textTransform: 'capitalize' }}>
-          {monthLabel(monthStr)}
+    <Screen>
+      <ScrollView
+        contentContainerStyle={{
+          padding: theme.spacing.lg,
+          gap: theme.spacing.lg,
+          width: '100%',
+          maxWidth: theme.layout.panelMaxWidth,
+          alignSelf: 'center',
+        }}
+      >
+        <Text accessibilityRole="header" style={{ ...theme.textStyles.heading1, color: theme.colors.textPrimary }}>
+          Resumen
         </Text>
-        <Pressable
-          onPress={() => setMonthStr((m) => addMonthsToMonthStr(m, 1))}
-          disabled={isCurrentMonth}
-          style={{ padding: 8, opacity: isCurrentMonth ? 0.3 : 1 }}
-        >
-          <Text style={{ fontSize: 18 }}>›</Text>
-        </Pressable>
-      </View>
 
-      {summary && (
-        <>
-          <View style={{ gap: 8 }}>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <View style={statBoxStyle}>
-                <Text style={{ fontSize: 22, fontWeight: '700' }}>{summary.ingresos.toFixed(2)} €</Text>
-                <Text style={{ fontSize: 12, color: '#666' }}>Ingresos por citas</Text>
-              </View>
-              <View style={statBoxStyle}>
-                <Text style={{ fontSize: 22, fontWeight: '700' }}>{summary.previsto.toFixed(2)} €</Text>
-                <Text style={{ fontSize: 12, color: '#666' }}>Previsto (confirmadas)</Text>
-              </View>
-            </View>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <View style={statBoxStyle}>
-                <Text style={{ fontSize: 22, fontWeight: '700' }}>{summary.numCompleted}</Text>
-                <Text style={{ fontSize: 12, color: '#666' }}>Citas completadas</Text>
-              </View>
-              <View style={statBoxStyle}>
-                <Text style={{ fontSize: 22, fontWeight: '700' }}>{ticketMedio !== null ? `${ticketMedio.toFixed(2)} €` : '—'}</Text>
-                <Text style={{ fontSize: 12, color: '#666' }}>Ticket medio</Text>
-              </View>
-            </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Pressable onPress={() => setMonthStr((m) => addMonthsToMonthStr(m, -1))} style={{ padding: theme.spacing.sm }}>
+            <Text style={{ fontSize: theme.fontSizes.lg, color: theme.colors.textPrimary }}>‹</Text>
+          </Pressable>
+          <Text
+            style={{
+              flex: 1,
+              textAlign: 'center',
+              ...theme.textStyles.bodyMedium,
+              color: theme.colors.textPrimary,
+              textTransform: 'capitalize',
+            }}
+          >
+            {monthLabel(monthStr)}
+          </Text>
+          <Pressable
+            onPress={() => setMonthStr((m) => addMonthsToMonthStr(m, 1))}
+            disabled={isCurrentMonth}
+            style={{ padding: theme.spacing.sm, opacity: isCurrentMonth ? 0.3 : 1 }}
+          >
+            <Text style={{ fontSize: theme.fontSizes.lg, color: theme.colors.textPrimary }}>›</Text>
+          </Pressable>
+        </View>
 
-            {comparison && (
-              <Text
-                style={{
-                  fontSize: 13,
-                  fontWeight: comparison.kind === 'percent' ? '600' : '400',
-                  color:
-                    comparison.kind === 'percent' ? (comparison.value >= 0 ? '#15803d' : '#b91c1c') : '#666',
-                }}
-              >
-                {comparison.kind === 'no-data' && 'Sin datos suficientes para comparar con el periodo anterior.'}
-                {comparison.kind === 'no-previous' && 'Sin ingresos en el periodo anterior.'}
-                {comparison.kind === 'percent' &&
-                  `${comparison.value >= 0 ? '+' : ''}${comparison.value.toFixed(0)}% vs mes anterior`}
+        {summary && (
+          <>
+            <View style={{ gap: theme.spacing.sm }}>
+              <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+                <StatBox value={`${summary.ingresos.toFixed(2)} €`} label="Ingresos por citas" />
+                <StatBox value={`${summary.previsto.toFixed(2)} €`} label="Previsto (confirmadas)" />
+              </View>
+              <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+                <StatBox value={String(summary.numCompleted)} label="Citas completadas" />
+                <StatBox value={ticketMedio !== null ? `${ticketMedio.toFixed(2)} €` : '—'} label="Ticket medio" />
+              </View>
+
+              {comparison && (
+                <Text
+                  style={{
+                    ...theme.textStyles.small,
+                    fontWeight: comparison.kind === 'percent' ? theme.fontWeights.semibold : theme.fontWeights.regular,
+                    color:
+                      comparison.kind === 'percent'
+                        ? comparison.value >= 0
+                          ? theme.colors.success
+                          : theme.colors.danger
+                        : theme.colors.textSecondary,
+                  }}
+                >
+                  {comparison.kind === 'no-data' && 'Sin datos suficientes para comparar con el periodo anterior.'}
+                  {comparison.kind === 'no-previous' && 'Sin ingresos en el periodo anterior.'}
+                  {comparison.kind === 'percent' &&
+                    `${comparison.value >= 0 ? '+' : ''}${comparison.value.toFixed(0)}% vs mes anterior`}
+                </Text>
+              )}
+
+              <Text style={{ ...theme.textStyles.caption, color: theme.colors.textMuted }}>
+                Basado en el precio de las citas completadas — no hay integración de pagos todavía, así que no
+                refleja cobros reales.
               </Text>
-            )}
-
-            <Text style={{ fontSize: 12, color: '#999' }}>
-              Basado en el precio de las citas completadas — no hay integración de pagos todavía, así que no
-              refleja cobros reales.
-            </Text>
-          </View>
-
-          <View style={cardStyle}>
-            <Text style={sectionTitleStyle}>Ingresos por semana</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}>
-              {summary.weeklyTotals.map((total, i) => {
-                const heightPx = total > 0 ? Math.max((total / maxWeekly) * 100, 4) : 0;
-                return (
-                  <View key={i} style={{ flex: 1, alignItems: 'center', gap: 4 }}>
-                    <Text style={{ fontSize: 11, color: '#666' }}>{total > 0 ? `${total.toFixed(0)}€` : ''}</Text>
-                    <View style={{ width: '100%', height: 100, justifyContent: 'flex-end' }}>
-                      <View style={{ height: heightPx, backgroundColor: '#111', borderRadius: 4 }} />
-                    </View>
-                    <Text style={{ fontSize: 11, color: '#666' }}>Sem {i + 1}</Text>
-                  </View>
-                );
-              })}
             </View>
-          </View>
 
-          <View style={cardStyle}>
-            <Text style={sectionTitleStyle}>Ingresos por servicio</Text>
-            {summary.serviceBreakdown.length === 0 ? (
-              <Text style={{ color: '#666' }}>Sin ingresos por servicio este periodo.</Text>
-            ) : (
-              <View style={{ gap: 10 }}>
-                {summary.serviceBreakdown.map((s) => {
-                  const widthPct = (s.total / maxService) * 100;
-                  return (
-                    <View key={s.serviceId} style={{ gap: 4 }}>
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                        <Text style={{ fontSize: 13 }}>{s.serviceName}</Text>
-                        <Text style={{ fontSize: 13, fontWeight: '600' }}>{s.total.toFixed(2)} €</Text>
+            <Card>
+              <Text style={{ ...theme.textStyles.heading2, color: theme.colors.textPrimary, marginBottom: theme.spacing.md }}>
+                Ingresos por semana
+              </Text>
+              {summary.weeklyTotals.every((total) => total === 0) ? (
+                <Text style={{ ...theme.textStyles.body, color: theme.colors.textSecondary }}>
+                  Sin ingresos este periodo.
+                </Text>
+              ) : (
+                <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: theme.spacing.sm }}>
+                  {summary.weeklyTotals.map((total, i) => {
+                    const heightPx = total > 0 ? Math.max((total / maxWeekly) * 100, 4) : 0;
+                    return (
+                      <View key={i} style={{ flex: 1, alignItems: 'center', gap: theme.spacing.xs }}>
+                        <Text style={{ ...theme.textStyles.caption, color: theme.colors.textSecondary }}>
+                          {total > 0 ? `${total.toFixed(0)}€` : ''}
+                        </Text>
+                        <View style={{ width: '100%', height: 100, justifyContent: 'flex-end' }}>
+                          <View style={{ height: heightPx, backgroundColor: theme.colors.primary, borderRadius: theme.radii.sm }} />
+                        </View>
+                        <Text style={{ ...theme.textStyles.caption, color: theme.colors.textSecondary }}>Sem {i + 1}</Text>
                       </View>
-                      <View style={{ height: 8, backgroundColor: '#eee', borderRadius: 4 }}>
-                        <View style={{ height: 8, width: `${widthPct}%`, backgroundColor: '#111', borderRadius: 4 }} />
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-          </View>
-        </>
-      )}
+                    );
+                  })}
+                </View>
+              )}
+            </Card>
 
-      {error && <Text style={{ color: 'crimson' }}>{error}</Text>}
-    </ScrollView>
+            <Card>
+              <Text style={{ ...theme.textStyles.heading2, color: theme.colors.textPrimary, marginBottom: theme.spacing.md }}>
+                Ingresos por servicio
+              </Text>
+              {summary.serviceBreakdown.length === 0 ? (
+                <Text style={{ ...theme.textStyles.body, color: theme.colors.textSecondary }}>
+                  Sin ingresos por servicio este periodo.
+                </Text>
+              ) : (
+                <View style={{ gap: theme.spacing.sm }}>
+                  {summary.serviceBreakdown.map((s) => {
+                    const widthPct = (s.total / maxService) * 100;
+                    return (
+                      <View key={s.serviceId} style={{ gap: theme.spacing.xs }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                          <Text style={{ ...theme.textStyles.small, color: theme.colors.textPrimary }}>{s.serviceName}</Text>
+                          <Text style={{ ...theme.textStyles.small, fontWeight: theme.fontWeights.semibold, color: theme.colors.textPrimary }}>
+                            {s.total.toFixed(2)} €
+                          </Text>
+                        </View>
+                        <View style={{ height: 8, backgroundColor: theme.colors.background, borderRadius: theme.radii.sm }}>
+                          <View
+                            style={{
+                              height: 8,
+                              width: `${widthPct}%`,
+                              backgroundColor: theme.colors.primary,
+                              borderRadius: theme.radii.sm,
+                            }}
+                          />
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+            </Card>
+          </>
+        )}
+
+        {error && <Text style={{ ...theme.textStyles.body, color: theme.colors.danger }}>{error}</Text>}
+      </ScrollView>
+    </Screen>
   );
 }

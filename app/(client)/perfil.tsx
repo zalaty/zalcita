@@ -1,5 +1,6 @@
 import { Text, View } from 'react-native';
 import { theme } from '@/theme';
+import { Screen } from '@/components/ui';
 
 // TODO: toggle de permisos de notificaciones push, toggle de
 // consent_marketing (ver sistema-notificaciones.md sección 5), y la opción
@@ -7,12 +8,15 @@ import { theme } from '@/theme';
 // en vez de un DELETE duro, tal como se explica en modelo-datos.md sección 5.
 export default function Perfil() {
   return (
-    <View
-      style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}
-    >
-      <Text style={{ ...theme.textStyles.body, color: theme.colors.textSecondary }}>
-        Perfil, notificaciones y privacidad.
+    <Screen style={{ padding: theme.spacing.lg }}>
+      <Text accessibilityRole="header" style={{ ...theme.textStyles.heading1, color: theme.colors.textPrimary }}>
+        Perfil
       </Text>
-    </View>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ ...theme.textStyles.body, color: theme.colors.textSecondary }}>
+          Perfil, notificaciones y privacidad.
+        </Text>
+      </View>
+    </Screen>
   );
 }

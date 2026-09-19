@@ -4,7 +4,7 @@ import { useFocusEffect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useBusiness } from '@/context/BusinessContext';
 import { theme } from '@/theme';
-import { Button, Card, Input } from '@/components/ui';
+import { Button, Card, Input, Screen } from '@/components/ui';
 import { addMonthsToMonthStr, monthGridCells, monthLabel, todayDateStrInZone } from '@/lib/timezone';
 import type { ScheduleException, WorkingHours } from '@/types/database';
 
@@ -436,16 +436,14 @@ export default function Horarios() {
 
   if (!business) {
     return (
-      <View
-        style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}
-      >
+      <Screen style={{ alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator color={theme.colors.primary} />
-      </View>
+      </Screen>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+    <Screen>
       <ScrollView
         contentContainerStyle={{
           padding: theme.spacing.lg,
@@ -455,6 +453,10 @@ export default function Horarios() {
           alignSelf: 'center',
         }}
       >
+        <Text accessibilityRole="header" style={{ ...theme.textStyles.heading1, color: theme.colors.textPrimary }}>
+          Horarios
+        </Text>
+
         <Card>
           <Text style={{ ...theme.textStyles.heading2, color: theme.colors.textPrimary, marginBottom: theme.spacing.md }}>
             Horario semanal
@@ -679,6 +681,6 @@ export default function Horarios() {
           )}
         </Card>
       </ScrollView>
-    </View>
+    </Screen>
   );
 }

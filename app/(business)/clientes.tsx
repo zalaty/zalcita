@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useBusiness } from '@/context/BusinessContext';
-
-const inputStyle = { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12 };
-const rowStyle = { padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#eee' };
+import { theme } from '@/theme';
+import { Input, Screen } from '@/components/ui';
 
 interface ClientRow {
   id: string;
@@ -105,9 +104,9 @@ export default function Clientes() {
 
   if (!business) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator />
-      </View>
+      <Screen style={{ alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color={theme.colors.primary} />
+      </Screen>
     );
   }
 
@@ -117,34 +116,56 @@ export default function Clientes() {
   const listToShow = showingSearch ? searchResults ?? [] : clients ?? [];
 
   return (
-    <View style={{ flex: 1, padding: 16, gap: 12 }}>
-      <TextInput placeholder="Buscar por nombre o teléfono" value={query} onChangeText={setQuery} style={inputStyle} />
+    <Screen>
+      <View
+        style={{
+          flex: 1,
+          padding: theme.spacing.lg,
+          gap: theme.spacing.md,
+          width: '100%',
+          maxWidth: theme.layout.panelMaxWidth,
+          alignSelf: 'center',
+        }}
+      >
+        <Text accessibilityRole="header" style={{ ...theme.textStyles.heading1, color: theme.colors.textPrimary }}>
+          Clientes
+        </Text>
 
-      {(loading && !clients) || (showingSearch && searching && searchResults === null) ? (
-        <ActivityIndicator />
-      ) : (
-        <FlatList
-          data={listToShow}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ gap: 8 }}
-          renderItem={({ item }) => (
-            <Pressable
-              onPress={() => router.push({ pathname: '/(business)/cliente/[id]', params: { id: item.id } })}
-              style={rowStyle}
-            >
-              <Text style={{ fontSize: 15, fontWeight: '600' }}>{item.name}</Text>
-              <Text style={{ fontSize: 13, color: '#666' }}>{item.phone}</Text>
-            </Pressable>
-          )}
-          ListEmptyComponent={
-            <Text style={{ color: '#666' }}>
-              {showingSearch ? 'No hay clientes que coincidan con la búsqueda.' : 'Todavía no tienes clientes.'}
-            </Text>
-          }
-        />
-      )}
+        <Input placeholder="Buscar por nombre o teléfono" value={query} onChangeText={setQuery} />
 
-      {listError && <Text style={{ color: 'crimson' }}>{listError}</Text>}
-    </View>
+        {(loading && !clients) || (showingSearch && searching && searchResults === null) ? (
+          <ActivityIndicator color={theme.colors.primary} />
+        ) : (
+          <FlatList
+            data={listToShow}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={{ gap: theme.spacing.sm }}
+            renderItem={({ item }) => (
+              <Pressable
+                onPress={() => router.push({ pathname: '/(business)/cliente/[id]', params: { id: item.id } })}
+                style={{
+                  padding: theme.spacing.md,
+                  borderRadius: theme.radii.md,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  backgroundColor: theme.colors.surface,
+                  ...theme.shadows.sm,
+                }}
+              >
+                <Text style={{ ...theme.textStyles.bodyMedium, color: theme.colors.textPrimary }}>{item.name}</Text>
+                <Text style={{ ...theme.textStyles.small, color: theme.colors.textSecondary }}>{item.phone}</Text>
+              </Pressable>
+            )}
+            ListEmptyComponent={
+              <Text style={{ ...theme.textStyles.body, color: theme.colors.textSecondary }}>
+                {showingSearch ? 'No hay clientes que coincidan con la búsqueda.' : 'Todavía no tienes clientes.'}
+              </Text>
+            }
+          />
+        )}
+
+        {listError && <Text style={{ ...theme.textStyles.body, color: theme.colors.danger }}>{listError}</Text>}
+      </View>
+    </Screen>
   );
 }

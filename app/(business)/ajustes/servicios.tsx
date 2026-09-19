@@ -4,7 +4,7 @@ import { useFocusEffect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useBusiness } from '@/context/BusinessContext';
 import { theme } from '@/theme';
-import { Badge, Button, Card, Input } from '@/components/ui';
+import { Badge, Button, Card, Input, Screen } from '@/components/ui';
 import type { Service } from '@/types/database';
 
 type Editing = Service | 'new' | null;
@@ -154,16 +154,14 @@ export default function Servicios() {
 
   if (!business) {
     return (
-      <View
-        style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}
-      >
+      <Screen style={{ alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator color={theme.colors.primary} />
-      </View>
+      </Screen>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+    <Screen>
       <ScrollView
         contentContainerStyle={{
           padding: theme.spacing.lg,
@@ -173,6 +171,10 @@ export default function Servicios() {
           alignSelf: 'center',
         }}
       >
+        <Text accessibilityRole="header" style={{ ...theme.textStyles.heading1, color: theme.colors.textPrimary }}>
+          Servicios
+        </Text>
+
         {editing !== null ? (
           <Card>
             <Text style={{ ...theme.textStyles.heading2, color: theme.colors.textPrimary, marginBottom: theme.spacing.md }}>
@@ -265,6 +267,6 @@ export default function Servicios() {
 
         {listError && <Text style={{ ...theme.textStyles.body, color: theme.colors.danger }}>{listError}</Text>}
       </ScrollView>
-    </View>
+    </Screen>
   );
 }

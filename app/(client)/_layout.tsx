@@ -9,11 +9,11 @@ export default function ClientLayout() {
   return (
     <Tabs
       screenOptions={{
-        headerShown: true,
-        headerStyle: { backgroundColor: theme.colors.surface },
-        headerTintColor: theme.colors.textPrimary,
-        headerTitleStyle: { color: theme.colors.textPrimary },
-        headerShadowVisible: false,
+        // El título de cada pantalla se pinta dentro de la columna
+        // centrada (ver Screen) — index/disponibilidad ya muestran la
+        // identidad del negocio ahí mismo, mis-citas/perfil pintan su
+        // propio título. La cabecera nativa ya no hace falta.
+        headerShown: false,
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.textMuted,
         tabBarStyle: { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border },

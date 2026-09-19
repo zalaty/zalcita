@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { theme } from '@/theme';
-import { Button, Card, Input } from '@/components/ui';
+import { Button, Card, Input, Screen } from '@/components/ui';
 import { formatLongDateInZone, formatTimeInZone } from '@/lib/timezone';
 import type { AppointmentStatus } from '@/types/database';
 
@@ -325,34 +325,24 @@ export default function Confirmacion() {
 
   if (!slug || !serviceId || !startTimeParam) {
     return (
-      <View
-        style={{
-          flex: 1,
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: theme.spacing.xl,
-          backgroundColor: theme.colors.background,
-        }}
-      >
+      <Screen style={{ alignItems: 'center', justifyContent: 'center', padding: theme.spacing.xl }}>
         <Text style={{ ...theme.textStyles.body, color: theme.colors.textSecondary, textAlign: 'center' }}>
           Elige antes una hora disponible para reservar.
         </Text>
-      </View>
+      </Screen>
     );
   }
 
   if (!business || !service) {
     return (
-      <View
-        style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}
-      >
+      <Screen style={{ alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator color={theme.colors.primary} />
         {error && (
           <Text style={{ ...theme.textStyles.body, color: theme.colors.danger, marginTop: theme.spacing.md }}>
             {error}
           </Text>
         )}
-      </View>
+      </Screen>
     );
   }
 
@@ -360,7 +350,7 @@ export default function Confirmacion() {
   const canSubmitClientForm = consentDataProcessing && name.trim() !== '' && phone.trim() !== '';
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+    <Screen>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{
@@ -506,6 +496,6 @@ export default function Confirmacion() {
           ) : null}
         </Card>
       </ScrollView>
-    </View>
+    </Screen>
   );
 }

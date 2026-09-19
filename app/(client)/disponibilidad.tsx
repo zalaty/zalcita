@@ -3,7 +3,7 @@ import { ActivityIndicator, FlatList, Pressable, ScrollView, Text, View, useWind
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { theme } from '@/theme';
-import { Badge, Card } from '@/components/ui';
+import { Badge, Card, Screen } from '@/components/ui';
 import { computeAvailableSlots, type Slot, type TimeRange } from '@/lib/availability';
 import { fetchDaySchedule, type DaySchedule } from '@/lib/schedule';
 import {
@@ -186,29 +186,19 @@ export default function Disponibilidad() {
 
   if (!slug || !serviceId) {
     return (
-      <View
-        style={{
-          flex: 1,
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: theme.spacing.xl,
-          backgroundColor: theme.colors.background,
-        }}
-      >
+      <Screen style={{ alignItems: 'center', justifyContent: 'center', padding: theme.spacing.xl }}>
         <Text style={{ ...theme.textStyles.body, color: theme.colors.textSecondary, textAlign: 'center' }}>
           Elige antes un servicio para ver su disponibilidad.
         </Text>
-      </View>
+      </Screen>
     );
   }
 
   if (loadingBusiness || !business || !service || !weekStart) {
     return (
-      <View
-        style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}
-      >
+      <Screen style={{ alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator color={theme.colors.primary} />
-      </View>
+      </Screen>
     );
   }
 
@@ -219,7 +209,7 @@ export default function Disponibilidad() {
   const businessInitial = business.name.trim().charAt(0).toUpperCase() || '?';
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+    <Screen>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{
@@ -464,6 +454,6 @@ export default function Disponibilidad() {
           </View>
         </Card>
       </ScrollView>
-    </View>
+    </Screen>
   );
 }
