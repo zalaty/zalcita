@@ -2,25 +2,6 @@ import { supabase } from '@/lib/supabase';
 import { todayDateStrInZone } from '@/lib/timezone';
 import type { AppointmentStatus } from '@/types/database';
 
-// Vocabulario de estado compartido entre calendario.tsx (lado negocio) y
-// mis-citas.tsx (lado cliente) — un solo sitio, así las dos pantallas
-// nunca pueden desincronizarse en cómo llaman/colorean cada estado.
-export const STATUS_LABELS: Record<AppointmentStatus, string> = {
-  pending: 'Pendiente',
-  confirmed: 'Confirmada',
-  cancelled: 'Cancelada',
-  completed: 'Completada',
-  no_show: 'No se presentó',
-};
-
-export const STATUS_COLORS: Record<AppointmentStatus, string> = {
-  pending: '#b45309',
-  confirmed: '#15803d',
-  cancelled: '#6b7280',
-  completed: '#1d4ed8',
-  no_show: '#b91c1c',
-};
-
 export interface AppointmentDetails {
   id: string;
   start_time: string;

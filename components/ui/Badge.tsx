@@ -12,7 +12,10 @@ export interface BadgeProps {
   tone?: BadgeTone;
 }
 
-const TONE_STYLES: Record<BadgeTone, { bg: string; text: string }> = {
+// Exportada para que otras superficies del sistema (p.ej. los bloques de cita
+// del calendario) reutilicen EXACTAMENTE los mismos pares fondo/texto ya
+// verificados AA, en vez de redefinirlos.
+export const BADGE_TONE_STYLES: Record<BadgeTone, { bg: string; text: string }> = {
   primary: { bg: theme.colors.primarySurface, text: theme.colors.primary },
   success: { bg: theme.colors.successSurface, text: theme.colors.success },
   warning: { bg: theme.colors.warningSurface, text: theme.colors.warning },
@@ -25,7 +28,7 @@ const TONE_STYLES: Record<BadgeTone, { bg: string; text: string }> = {
 // color: es la regla de accesibilidad del sistema para daltonismo (ver
 // theme/colors.ts). No añadir un uso de Badge sin texto legible dentro.
 export function Badge({ label, tone = 'neutral' }: BadgeProps) {
-  const toneStyle = TONE_STYLES[tone];
+  const toneStyle = BADGE_TONE_STYLES[tone];
   return (
     <View
       style={{

@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { theme } from '@/theme';
 import { appointmentStatusColors } from '@/theme';
-import { Badge, Button, Card, Input, type BadgeTone } from '@/components/ui';
-import { STATUS_LABELS } from '@/lib/appointments';
+import { Badge, Button, Card, Input } from '@/components/ui';
+import { APPOINTMENT_STATUS_PRESENTATION, STATUS_LABELS } from '@/lib/appointmentStatusPresentation';
 import type { AppointmentStatus } from '@/types/database';
 
 // Guía de estilo viva del sistema de diseño — ruta suelta sin enlazar
@@ -107,14 +107,6 @@ function CvdComparisonRow({ label, hex }: { label: string; hex: string }) {
     </View>
   );
 }
-
-const APPOINTMENT_STATUSES: { status: AppointmentStatus; tone: BadgeTone }[] = [
-  { status: 'pending', tone: 'warning' },
-  { status: 'confirmed', tone: 'success' },
-  { status: 'completed', tone: 'info' },
-  { status: 'cancelled', tone: 'neutral' },
-  { status: 'no_show', tone: 'danger' },
-];
 
 export default function ThemePreview() {
   const [inputValue, setInputValue] = useState('');
@@ -317,8 +309,12 @@ export default function ThemePreview() {
         description="Siempre con su etiqueta de texto — nunca solo color (regla de accesibilidad del sistema)."
       >
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
-          {APPOINTMENT_STATUSES.map(({ status, tone }) => (
-            <Badge key={status} label={STATUS_LABELS[status]} tone={tone} />
+          {(Object.keys(APPOINTMENT_STATUS_PRESENTATION) as AppointmentStatus[]).map((status) => (
+            <Badge
+              key={status}
+              label={APPOINTMENT_STATUS_PRESENTATION[status].label}
+              tone={APPOINTMENT_STATUS_PRESENTATION[status].tone}
+            />
           ))}
           <Badge label="Marca" tone="primary" />
         </View>

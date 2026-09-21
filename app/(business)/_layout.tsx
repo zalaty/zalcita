@@ -66,19 +66,17 @@ function BusinessPanel() {
       {/* headerShown: false por defecto — el rediseño (Fase 2) pinta el
           título dentro de la columna centrada de cada pantalla en vez de
           usar la cabecera nativa (en web queda pegada a la esquina, fuera
-          del eje del contenido). calendario/cita son la excepción: TODAVÍA
-          sin rediseñar (llega en la tanda del calendario), así que
-          conservan su cabecera nativa actual hasta entonces. */}
+          del eje del contenido). calendario/cita ya se han rediseñado
+          (tanda del calendario) y pintan su propio título con Screen. */}
       <Tabs screenOptions={{ headerShown: false }}>
-        <Tabs.Screen name="calendario" options={{ title: 'Calendario', headerShown: true }} />
+        <Tabs.Screen name="calendario" options={{ title: 'Calendario' }} />
         <Tabs.Screen name="clientes" options={{ title: 'Clientes' }} />
         <Tabs.Screen name="resumen" options={{ title: 'Resumen' }} />
         <Tabs.Screen name="ajustes" options={{ title: 'Ajustes' }} />
         {/* Pantalla de crear/mover cita: navegable desde calendario.tsx,
             pero no es una pestaña — mismo patrón que disponibilidad/
-            confirmacion en (client)/_layout.tsx. Parte del mismo cluster
-            sin rediseñar que calendario, misma excepción. */}
-        <Tabs.Screen name="cita" options={{ title: 'Cita', href: null, headerShown: true }} />
+            confirmacion en (client)/_layout.tsx. */}
+        <Tabs.Screen name="cita" options={{ title: 'Cita', href: null }} />
         {/* Ficha de cliente: navegable desde clientes.tsx, tampoco es pestaña. */}
         <Tabs.Screen name="cliente/[id]" options={{ title: 'Cliente', href: null }} />
       </Tabs>

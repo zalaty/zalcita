@@ -20,9 +20,10 @@ import type { AppointmentStatus } from '@/types/database';
 //     OBLIGATORIA de BadgeProps — TypeScript impide compilar un <Badge>
 //     sin texto, así que es estructuralmente imposible usar un color de
 //     estado sin su etiqueta al lado.
-//   - STATUS_LABELS (lib/appointments.ts) es el diccionario de etiquetas
-//     de los 5 estados de cita, pensado para ir siempre de la mano de
-//     appointmentStatusColors (ver más abajo) — nunca uno sin el otro.
+//   - STATUS_LABELS (lib/appointmentStatusPresentation.ts) es el
+//     diccionario de etiquetas de los 5 estados de cita, pensado para ir
+//     siempre de la mano de appointmentStatusColors (ver más abajo) —
+//     nunca uno sin el otro.
 // Cualquier pantalla o componente nuevo que use estos tokens de estado
 // debe mantener esa misma regla: color + texto, nunca color solo.
 //
@@ -69,6 +70,11 @@ import type { AppointmentStatus } from '@/types/database';
 //   textOnPrimary                primary (Button)             5.47:1           PASA
 //   textOnPrimary                primaryPressed (Button)      9.48:1           PASA
 //   textOnPrimary                danger (Button)               6.47:1          PASA
+//   textPrimary                  loadFree (Mes, carga)       13.87:1           PASA
+//   textPrimary                  loadPartial (Mes, carga)     7.03:1           PASA
+//   textOnLoadFull               loadFull (Mes, carga)        7.58:1           PASA
+//   textSecondary                loadClosed (Mes, cerrado)    7.18:1           PASA
+//   textPrimary                  loadPast (Mes, día pasado)  11.74:1           PASA
 //   disabledText                 disabledBg (Button/Input)    2.01:1  EXENTO — WCAG 1.4.3 excluye
 //                                                                      explícitamente los componentes
 //                                                                      INACTIVOS ("Inactive user
@@ -132,6 +138,21 @@ export interface ColorTokens {
   dangerSurface: string;
   info: string;
   infoSurface: string;
+
+  // Escala de CARGA del día (vista Mes del calendario): monocroma teal, la
+  // carga se lee por LUMINOSIDAD (más oscuro = más lleno), nunca por matiz.
+  // `loadClosed` queda FUERA de la escala (día que no cuenta) y se distingue
+  // además por estructura (borde discontinuo, "–"/"Cerrado"), no solo por tono.
+  // `textOnLoadFull` es el texto sobre el paso más oscuro (los otros pasos
+  // llevan textPrimary). Ratios AA en la tabla de arriba.
+  loadClosed: string;
+  // Día PASADO abierto (vista Mes): neutro sólido, fuera de la escala de carga
+  // — la carga solo tiene sentido como cupo de hoy en adelante.
+  loadPast: string;
+  loadFree: string;
+  loadPartial: string;
+  loadFull: string;
+  textOnLoadFull: string;
 }
 
 // Objeto intermedio SIN exportar: permite que los alias de abajo
@@ -175,22 +196,58 @@ const base: ColorTokens = {
   dangerSurface: '#fef2f2',
   info: '#1d4ed8', // 6.70:1 vs surface, 6.31:1 vs background, 6.16:1 vs infoSurface (Badge)
   infoSurface: '#eff6ff',
+
+  // Escala de carga — luminosidad L* (CIE): free 90.9 / partial 67.4 / full 35.7,
+  // saltos de 23.5 y 31.7. closed = igual que `background` (L* 97.6): "sin relleno".
+  loadClosed: '#f8f8f7',
+  // L* 84.7: 6.2 por debajo de loadFree (90.9), sin matiz teal. textPrimary 11.74:1.
+  loadPast: '#d6d3d1',
+  loadFree: '#99f6e4', // textPrimary 13.87:1
+  loadPartial: '#14b8a6', // textPrimary 7.03:1
+  loadFull: '#115e59', // textOnLoadFull 7.58:1
+  textOnLoadFull: '#ffffff',
 };
 
 export const lightColors: ColorTokens = base;
 
-// Estados de cita (hoy STATUS_COLORS en lib/appointments.ts), redefinidos
-// sobre esta paleta — mismo reparto de matices que ya existía (ámbar/
-// verde/azul/gris/rojo), solo con los valores recalculados para cumplir
-// AA. Deliberadamente NINGUNO usa `primary` (el teal de marca): así "esto
-// es una acción" (botón) y "esto es un estado" (cita) nunca se confunden
-// visualmente. WCAG 1.4.1: estos colores se consumen siempre junto a
-// STATUS_LABELS (lib/appointments.ts) — nunca solo el color, ver nota de
+// Estados de cita: ORIGEN ÚNICO de verdad del reparto estado -> tono
+// (ámbar/verde/azul/gris/rojo), con valores recalculados para cumplir AA.
+// `appointmentStatusTones` es el mapeo canónico; `appointmentStatusColors`
+// se DERIVA de él (no se repite a mano), así que tono y color no pueden
+// desincronizarse. Quien pinte un estado de cita (Badge, bloques del
+// calendario...) lo hace vía lib/appointmentStatusPresentation.ts, nunca
+// con un mapeo propio.
+// Deliberadamente NINGUNO usa `primary` (el teal de marca): así "esto es
+// una acción" (botón) y "esto es un estado" (cita) nunca se confunden
+// visualmente. WCAG 1.4.1: estos colores se consumen siempre junto a la
+// etiqueta (STATUS_LABELS, en ese mismo módulo) y, donde el color es el
+// único matiz posible, con otra señal estructural — ver nota de
 // cumplimiento al principio de este archivo.
+//
+// Subconjunto de BadgeTone (components/ui/Badge.tsx); se declara aquí para
+// que el theme no dependa de los componentes.
+export type AppointmentStatusTone = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
+
+export const appointmentStatusTones: Record<AppointmentStatus, AppointmentStatusTone> = {
+  pending: 'warning',
+  confirmed: 'success',
+  completed: 'info',
+  cancelled: 'neutral',
+  no_show: 'danger',
+};
+
+const toneTextColor: Record<AppointmentStatusTone, string> = {
+  success: base.success,
+  warning: base.warning,
+  danger: base.danger,
+  info: base.info,
+  neutral: base.textMuted,
+};
+
 export const appointmentStatusColors: Record<AppointmentStatus, string> = {
-  pending: base.warning,
-  confirmed: base.success,
-  completed: base.info,
-  cancelled: base.textMuted,
-  no_show: base.danger,
+  pending: toneTextColor[appointmentStatusTones.pending],
+  confirmed: toneTextColor[appointmentStatusTones.confirmed],
+  completed: toneTextColor[appointmentStatusTones.completed],
+  cancelled: toneTextColor[appointmentStatusTones.cancelled],
+  no_show: toneTextColor[appointmentStatusTones.no_show],
 };

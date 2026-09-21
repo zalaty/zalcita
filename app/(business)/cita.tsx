@@ -14,6 +14,8 @@ import {
   todayDateStrInZone,
   zonedTimeToUtc,
 } from '@/lib/timezone';
+import { theme } from '@/theme';
+import { Screen } from '@/components/ui';
 
 const inputStyle = { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12 };
 const buttonStyle = { backgroundColor: '#111', padding: 14, borderRadius: 8 };
@@ -385,9 +387,9 @@ export default function Cita() {
 
   if (loadError) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <Screen style={{ alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <Text style={{ color: 'crimson' }}>{loadError}</Text>
-      </View>
+      </Screen>
     );
   }
 
@@ -397,9 +399,9 @@ export default function Cita() {
   // abajo y genera un Invalid Date que revienta al pasar por Intl.
   if (!business || initialLoading || !selectedDate) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      <Screen style={{ alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator />
-      </View>
+      </Screen>
     );
   }
 
@@ -499,13 +501,28 @@ export default function Cita() {
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 24 }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text style={{ fontSize: 18, fontWeight: '700' }}>{isEdit ? 'Mover cita' : 'Nueva cita'}</Text>
-        <Pressable onPress={() => router.back()}>
-          <Text style={{ color: '#666' }}>Cancelar</Text>
-        </Pressable>
-      </View>
+    <Screen>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          padding: theme.spacing.lg,
+          gap: 24,
+          width: '100%',
+          maxWidth: theme.layout.panelMaxWidth,
+          alignSelf: 'center',
+        }}
+      >
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text
+            accessibilityRole="header"
+            style={{ ...theme.textStyles.heading1, color: theme.colors.textPrimary }}
+          >
+            {isEdit ? 'Mover cita' : 'Nueva cita'}
+          </Text>
+          <Pressable onPress={() => router.back()}>
+            <Text style={{ color: '#666' }}>Cancelar</Text>
+          </Pressable>
+        </View>
 
       <View style={{ gap: 8 }}>
         <Text style={sectionTitleStyle}>Cliente</Text>
@@ -674,6 +691,7 @@ export default function Cita() {
       </Pressable>
 
       {submitError && <Text style={{ color: 'crimson' }}>{submitError}</Text>}
-    </ScrollView>
+      </ScrollView>
+    </Screen>
   );
 }

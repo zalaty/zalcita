@@ -22,10 +22,11 @@ import {
 import {
   fetchAppointmentsInRange,
   groupAppointmentsByDate,
-  STATUS_COLORS,
-  STATUS_LABELS,
   type AppointmentDetails,
 } from '@/lib/appointments';
+import { APPOINTMENT_STATUS_PRESENTATION } from '@/lib/appointmentStatusPresentation';
+import { theme } from '@/theme';
+import { Badge, BADGE_TONE_STYLES, Screen } from '@/components/ui';
 import {
   dayScheduleFromRange,
   fetchScheduleForRange,
@@ -36,8 +37,14 @@ import {
 import { computeAvailableSlots, type Slot } from '@/lib/availability';
 import type { Appointment, AppointmentStatus, Business } from '@/types/database';
 
-const buttonStyle = { backgroundColor: '#111', padding: 14, borderRadius: 8 };
-const buttonTextStyle = { color: '#fff', textAlign: 'center' as const, fontWeight: '600' as const };
+const buttonStyle = { backgroundColor: theme.colors.primary, padding: 14, borderRadius: 8 };
+const buttonTextStyle = { color: theme.colors.textOnPrimary, textAlign: 'center' as const, fontWeight: '600' as const };
+
+// Columna de cabecera y de la vista Día: mismo ancho, mismo borde izquierdo
+// (padding lateral lg dentro), para que título, selector y tarjetas queden a
+// plomo. La cabecera mantiene este ancho en las 3 vistas (no salta al
+// cambiar); solo el CUERPO de Semana/Mes se abre a ancho completo.
+const COLUMN_STYLE = { width: '100%', maxWidth: theme.layout.panelMaxWidth, alignSelf: 'center' } as const;
 
 const VIEW_STORAGE_KEY = '@zalcita/calendario_view';
 type CalendarView = 'day' | 'week' | 'month';
@@ -63,8 +70,8 @@ const DEFAULT_GRID_BOUNDS = { startMin: 8 * 60, endMin: 20 * 60 };
 const EARLY_EPOCH = new Date(0);
 const COLOR_CLOSED_BG = '#f2f2f2';
 const COLOR_BLOCKED_BG = '#e5e5e5';
-// Huecos libres: NUNCA verde — STATUS_COLORS ya usa verde oscuro para
-// "confirmed" (lib/appointments.ts), y un verde claro al lado se confundía
+// Huecos libres: NUNCA verde — el estado "confirmed" ya usa verde oscuro
+// (theme success, ver appointmentBlockAppearance), y un verde claro al lado se confundía
 // con eso (poco contraste, además, para daltonismo). Blanco + borde
 // punteado + etiqueta "Libre": la distinción libre/ocupado no depende del
 // matiz de color en ningún punto.
@@ -171,7 +178,7 @@ function ViewSelector({ value, onChange }: { value: CalendarView; onChange: (v: 
     { value: 'month', label: 'Mes' },
   ];
   return (
-    <View style={{ flexDirection: 'row', gap: 8, padding: 16, paddingBottom: 0 }}>
+    <View style={{ flexDirection: 'row', gap: theme.spacing.sm, paddingHorizontal: theme.spacing.lg, paddingBottom: 0 }}>
       {options.map((opt) => {
         const selected = value === opt.value;
         return (
@@ -183,11 +190,17 @@ function ViewSelector({ value, onChange }: { value: CalendarView; onChange: (v: 
               paddingHorizontal: 14,
               borderRadius: 8,
               borderWidth: 1,
-              borderColor: selected ? '#111' : '#ccc',
-              backgroundColor: selected ? '#111' : 'transparent',
+              borderColor: selected ? theme.colors.primary : theme.colors.border,
+              backgroundColor: selected ? theme.colors.primary : 'transparent',
             }}
           >
-            <Text style={{ fontSize: 13, fontWeight: selected ? '600' : '400', color: selected ? '#fff' : '#111' }}>
+            <Text
+              style={{
+                fontSize: 13,
+                fontWeight: selected ? '600' : '400',
+                color: selected ? theme.colors.textOnPrimary : theme.colors.textPrimary,
+              }}
+            >
               {opt.label}
             </Text>
           </Pressable>
@@ -196,6 +209,87 @@ function ViewSelector({ value, onChange }: { value: CalendarView; onChange: (v: 
     </View>
   );
 }
+
+// Mezcla `fg` sobre `bg` con peso `weight` (0..1) y devuelve un hex opaco.
+// Se usa solo para derivar el fondo "apagado" de completada a partir del
+// token del estado, sin introducir un hex nuevo.
+function blendHex(fg: string, bg: string, weight: number): string {
+  const channels = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const [f, b] = [channels(fg), channels(bg)];
+  return `#${f.map((v, i) => Math.round(v * weight + b[i] * (1 - weight)).toString(16).padStart(2, '0')).join('')}`;
+}
+
+interface BlockAppearance {
+  backgroundColor: string;
+  textColor: string;
+  borderColor: string;
+  borderWidth: number;
+  strikeThrough: boolean;
+}
+
+// Apariencia del bloque de cita en la vista Semana. El estado se distingue
+// por la FORMA/ESTRUCTURA del bloque, no por el matiz (WCAG 1.4.1); el color
+// del estado (tono compartido, lib/appointmentStatusPresentation.ts) queda
+// como refuerzo redundante:
+//   confirmed -> RELLENO sólido saturado, sin marca extra (estado "normal")
+//   pending   -> CONTORNO: fondo claro + borde grueso de color ("aún no en firme")
+//   cancelled -> gris atenuado + TACHADO
+//   completed -> relleno apagado (tinte medio del tono) + glifo ✓
+//   no_show   -> relleno danger + glifo ✕
+// Contrastes AA (texto/fondo): confirmed blanco/success 7.13, no_show
+// blanco/danger 6.47, pending warning/warningSurface 4.75, cancelled
+// textSecondary/disabledBg 6.08, completed textPrimary/tinte 9.78.
+function appointmentBlockAppearance(status: AppointmentDetails['status']): BlockAppearance {
+  const { tone, color } = APPOINTMENT_STATUS_PRESENTATION[status];
+  const separator = theme.colors.surface;
+
+  switch (status) {
+    case 'confirmed':
+    case 'no_show':
+      return {
+        backgroundColor: color,
+        textColor: theme.colors.textOnPrimary,
+        borderColor: separator,
+        borderWidth: 1,
+        strikeThrough: false,
+      };
+    case 'pending':
+      return {
+        backgroundColor: BADGE_TONE_STYLES[tone].bg,
+        textColor: BADGE_TONE_STYLES[tone].text,
+        borderColor: color,
+        borderWidth: 2,
+        strikeThrough: false,
+      };
+    case 'completed':
+      return {
+        backgroundColor: blendHex(color, theme.colors.surface, 0.35),
+        textColor: theme.colors.textPrimary,
+        borderColor: separator,
+        borderWidth: 1,
+        strikeThrough: false,
+      };
+    case 'cancelled':
+      return {
+        backgroundColor: BADGE_TONE_STYLES[tone].bg,
+        textColor: BADGE_TONE_STYLES[tone].text,
+        borderColor: theme.colors.borderStrong,
+        borderWidth: 1,
+        strikeThrough: true,
+      };
+  }
+}
+
+// Glifo ✓/✕ de completada/no-show: 14px (el texto del bloque es de 10) para
+// que la señal no-cromática se lea a primera vista. Bajo COMPACT_BLOCK_MAX_HEIGHT
+// (bloques de ~15 min) el bloque pasa a una sola línea sin padding vertical y
+// el glifo se reduce solo lo justo para caber (alto del bloque - borde).
+const GLYPH_MAX_SIZE = 14;
+const COMPACT_BLOCK_MAX_HEIGHT = 20;
+
+// Bajo este alto (px = minutos) no cabe una segunda línea con la etiqueta
+// del estado; el estado sigue distinguiéndose por la forma del bloque.
+const BLOCK_LABEL_MIN_HEIGHT = 44;
 
 // Una columna de día de la vista Semana: cabecera (día + fecha, toca para
 // abrir la vista Día) + rejilla con fondo libre/ocupado (computeAvailableSlots,
@@ -254,15 +348,25 @@ function WeekDayColumn({
           alignItems: 'center',
           justifyContent: 'center',
           borderBottomWidth: 1,
-          borderColor: '#eee',
-          backgroundColor: dateStr === today ? '#eef2ff' : 'transparent',
+          borderColor: theme.colors.border,
+          backgroundColor: dateStr === today ? theme.colors.primarySurface : 'transparent',
         }}
       >
-        <Text style={{ fontSize: 11, color: '#666' }}>{weekdayShortLabel(dateStr)}</Text>
-        <Text style={{ fontSize: 14, fontWeight: '600' }}>{Number(dateStr.slice(8, 10))}</Text>
+        <Text style={{ fontSize: 11, color: theme.colors.textSecondary }}>{weekdayShortLabel(dateStr)}</Text>
+        <Text style={{ fontSize: 14, fontWeight: '600', color: theme.colors.textPrimary }}>
+          {Number(dateStr.slice(8, 10))}
+        </Text>
       </Pressable>
 
-      <View style={{ height: totalHeight, position: 'relative', backgroundColor: COLOR_CLOSED_BG, borderLeftWidth: 1, borderColor: '#eee' }}>
+      <View
+        style={{
+          height: totalHeight,
+          position: 'relative',
+          backgroundColor: COLOR_CLOSED_BG,
+          borderLeftWidth: 1,
+          borderColor: theme.colors.border,
+        }}
+      >
         {hourMarks.map((m) => (
           <View
             key={m}
@@ -272,7 +376,7 @@ function WeekDayColumn({
               left: 0,
               right: 0,
               height: 1,
-              backgroundColor: '#e0e0e0',
+              backgroundColor: theme.colors.border,
             }}
           />
         ))}
@@ -319,7 +423,7 @@ function WeekDayColumn({
                 backgroundColor: COLOR_BLOCKED_BG,
                 borderTopWidth: 1,
                 borderBottomWidth: 1,
-                borderColor: '#ddd',
+                borderColor: theme.colors.border,
                 borderStyle: 'dashed',
               }}
             />
@@ -331,27 +435,71 @@ function WeekDayColumn({
           const endMin = clamp(slotToMinutes(new Date(appointment.end_time), tz), gridBounds.startMin, gridBounds.endMin);
           if (endMin <= startMin) return null;
           const widthPct = 100 / totalLanes;
+          const blockHeight = (endMin - startMin) * PX_PER_MINUTE;
+          const presentation = APPOINTMENT_STATUS_PRESENTATION[appointment.status];
+          const look = appointmentBlockAppearance(appointment.status);
+          const startLabel = formatTimeInZone(new Date(appointment.start_time), tz);
+          const compact = blockHeight < COMPACT_BLOCK_MAX_HEIGHT;
+          // Con borde de 1px (los estados con glifo), el alto útil es
+          // blockHeight - 2: el glifo usa el máximo que quepa hasta 14px.
+          const glyphSize = Math.min(GLYPH_MAX_SIZE, blockHeight - 2);
           return (
             <Pressable
               key={appointment.id}
               onPress={() => onOpenDay(dateStr)}
+              accessibilityRole="button"
+              accessibilityLabel={`${startLabel} ${appointment.clientName}, ${presentation.label}`}
               style={{
                 position: 'absolute',
                 top: (startMin - gridBounds.startMin) * PX_PER_MINUTE,
-                height: (endMin - startMin) * PX_PER_MINUTE,
+                height: blockHeight,
                 left: `${lane * widthPct}%`,
                 width: `${widthPct}%`,
-                backgroundColor: STATUS_COLORS[appointment.status],
+                backgroundColor: look.backgroundColor,
                 borderRadius: 4,
-                borderWidth: 1,
-                borderColor: '#fff',
-                padding: 2,
+                borderWidth: look.borderWidth,
+                borderColor: look.borderColor,
+                paddingHorizontal: 2,
+                // En bloques de ~15 min el padding vertical se quita para que
+                // quepa el glifo grande (ver GLYPH_MAX_SIZE).
+                paddingVertical: compact ? 0 : 2,
                 overflow: 'hidden',
               }}
             >
-              <Text numberOfLines={2} style={{ fontSize: 10, color: '#fff', fontWeight: '600' }}>
-                {formatTimeInZone(new Date(appointment.start_time), tz)} {appointment.clientName}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: compact ? 'center' : 'flex-start', gap: 3 }}>
+                {presentation.glyph && (
+                  // El glifo manda sobre el texto: tamaño fijo (nunca se
+                  // encoge ni se trunca), el texto es lo que cede.
+                  <Text
+                    style={{
+                      fontSize: glyphSize,
+                      lineHeight: glyphSize,
+                      fontWeight: '700',
+                      color: look.textColor,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {presentation.glyph}
+                  </Text>
+                )}
+                <Text
+                  numberOfLines={compact ? 1 : 2}
+                  style={{
+                    flex: 1,
+                    fontSize: 10,
+                    color: look.textColor,
+                    fontWeight: '600',
+                    textDecorationLine: look.strikeThrough ? 'line-through' : 'none',
+                  }}
+                >
+                  {startLabel} {appointment.clientName}
+                </Text>
+              </View>
+              {blockHeight >= BLOCK_LABEL_MIN_HEIGHT && (
+                <Text numberOfLines={1} style={{ fontSize: 9, color: look.textColor }}>
+                  {presentation.label}
+                </Text>
+              )}
             </Pressable>
           );
         })}
@@ -428,37 +576,43 @@ function CalendarioSemana({
 
   return (
     <View style={{ flex: 1 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderColor: '#eee' }}>
+      <View style={{ borderBottomWidth: 1, borderColor: theme.colors.border }}>
+      <View style={COLUMN_STYLE}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', padding: theme.spacing.lg }}>
         <Pressable onPress={() => setWeekStart((w) => addDaysToDateStr(w, -7))} style={{ padding: 8 }}>
-          <Text style={{ fontSize: 18 }}>‹</Text>
+          <Text style={{ fontSize: 18, color: theme.colors.textPrimary }}>‹</Text>
         </Pressable>
         <View style={{ flex: 1, alignItems: 'center' }}>
-          <Text style={{ fontSize: 14, fontWeight: '600' }}>
+          <Text style={{ fontSize: 14, fontWeight: '600', color: theme.colors.textPrimary }}>
             {dayMonthLabel(weekDays[0])} – {dayMonthLabel(weekDays[6])}
           </Text>
           {weekStart !== currentWeekStart && (
             <Pressable onPress={() => setWeekStart(currentWeekStart)} style={{ marginTop: 4 }}>
-              <Text style={{ fontSize: 12, color: '#1d4ed8' }}>Ir a esta semana</Text>
+              <Text style={{ fontSize: 12, color: theme.colors.primary }}>Ir a esta semana</Text>
             </Pressable>
           )}
         </View>
         <Pressable onPress={() => setWeekStart((w) => addDaysToDateStr(w, 7))} style={{ padding: 8 }}>
-          <Text style={{ fontSize: 18 }}>›</Text>
+          <Text style={{ fontSize: 18, color: theme.colors.textPrimary }}>›</Text>
         </Pressable>
       </View>
+      </View>
+      </View>
 
-      <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
-        <Pressable onPress={() => onNewAppointment(weekStart)} style={buttonStyle}>
-          <Text style={buttonTextStyle}>+ Nueva cita</Text>
-        </Pressable>
+      <View style={COLUMN_STYLE}>
+        <View style={{ paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.lg }}>
+          <Pressable onPress={() => onNewAppointment(weekStart)} style={buttonStyle}>
+            <Text style={buttonTextStyle}>+ Nueva cita</Text>
+          </Pressable>
+        </View>
       </View>
 
       {loading && !rangeSchedule ? (
         <ActivityIndicator style={{ marginTop: 24 }} />
       ) : error ? (
-        <Text style={{ color: 'crimson', padding: 16 }}>{error}</Text>
+        <Text style={{ color: theme.colors.danger, padding: theme.spacing.lg }}>{error}</Text>
       ) : (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: theme.spacing.lg }}>
           <View style={{ flexDirection: 'row' }}>
             <View style={{ width: HOUR_COL_WIDTH }}>
               <View style={{ height: HEADER_HEIGHT }} />
@@ -471,7 +625,7 @@ function CalendarioSemana({
                       top: (m - gridBounds.startMin) * PX_PER_MINUTE - 6,
                       right: 4,
                       fontSize: 11,
-                      color: '#666',
+                      color: theme.colors.textSecondary,
                     }}
                   >
                     {minutesToHm(m)}
@@ -542,16 +696,27 @@ const WIDE_CELL_MIN_HEIGHT = 92;
 
 type DayLoadStatus = 'closed' | 'free' | 'partial' | 'full';
 
-// Colores de apoyo, NUNCA la única señal: el número de citas (o "–" si
-// está cerrado) es lo que de verdad informa en cada celda; el fondo solo
-// da el vistazo panorámico. COLOR_CLOSED_BG es el mismo gris que ya usa la
-// vista Semana para "cerrado" — mismo lenguaje visual en todo el calendario.
+// Carga del día = LUMINOSIDAD, no matiz: escala monocroma teal (tokens
+// load* del theme, más oscuro = más lleno). `closed` queda fuera de la
+// escala (sin relleno, borde discontinuo). NUNCA la única señal: en la celda
+// siempre hay el nº de citas o "–" (ver más abajo). COLOR_CLOSED_BG NO se usa
+// aquí: es el gris de las columnas cerradas de Semana y se queda como está.
 const DAY_STATUS_BG: Record<DayLoadStatus, string> = {
-  closed: COLOR_CLOSED_BG,
-  free: '#f0fdf4',
-  partial: '#fef9c3',
-  full: '#fee2e2',
+  closed: theme.colors.loadClosed,
+  free: theme.colors.loadFree,
+  partial: theme.colors.loadPartial,
+  full: theme.colors.loadFull,
 };
+// Color del contenido de la celda por paso (AA verificado en theme/colors.ts).
+const DAY_STATUS_TEXT: Record<DayLoadStatus, string> = {
+  closed: theme.colors.textSecondary,
+  free: theme.colors.textPrimary,
+  partial: theme.colors.textPrimary,
+  full: theme.colors.textOnLoadFull,
+};
+// Orden claro -> oscuro de la escala (sin "closed", que va aparte).
+const LOAD_SCALE: DayLoadStatus[] = ['free', 'partial', 'full'];
+const LEGEND_STEP_WIDTH = 72;
 const DAY_STATUS_LABEL: Record<DayLoadStatus, string> = {
   closed: 'Cerrado',
   free: 'Libre',
@@ -695,32 +860,47 @@ function CalendarioMes({
 
   return (
     <View style={{ flex: 1 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderColor: '#eee' }}>
+      <View style={{ borderBottomWidth: 1, borderColor: theme.colors.border }}>
+      <View style={COLUMN_STYLE}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', padding: theme.spacing.lg }}>
         <Pressable onPress={() => setMonthStr((m) => addMonthsToMonthStr(m, -1))} style={{ padding: 8 }}>
-          <Text style={{ fontSize: 18 }}>‹</Text>
+          <Text style={{ fontSize: 18, color: theme.colors.textPrimary }}>‹</Text>
         </Pressable>
         <View style={{ flex: 1, alignItems: 'center' }}>
-          <Text style={{ fontSize: 14, fontWeight: '600', textTransform: 'capitalize' }}>{monthLabel(monthStr)}</Text>
+          <Text style={{ fontSize: 14, fontWeight: '600', textTransform: 'capitalize', color: theme.colors.textPrimary }}>
+            {monthLabel(monthStr)}
+          </Text>
           {monthStr !== currentMonthStr && (
             <Pressable onPress={() => setMonthStr(currentMonthStr)} style={{ marginTop: 4 }}>
-              <Text style={{ fontSize: 12, color: '#1d4ed8' }}>Ir a este mes</Text>
+              <Text style={{ fontSize: 12, color: theme.colors.primary }}>Ir a este mes</Text>
             </Pressable>
           )}
         </View>
         <Pressable onPress={() => setMonthStr((m) => addMonthsToMonthStr(m, 1))} style={{ padding: 8 }}>
-          <Text style={{ fontSize: 18 }}>›</Text>
+          <Text style={{ fontSize: 18, color: theme.colors.textPrimary }}>›</Text>
         </Pressable>
+      </View>
+      </View>
       </View>
 
       {loading && !rangeSchedule ? (
         <ActivityIndicator style={{ marginTop: 24 }} />
       ) : error ? (
-        <Text style={{ color: 'crimson', padding: 16 }}>{error}</Text>
+        <Text style={{ color: theme.colors.danger, padding: theme.spacing.lg }}>{error}</Text>
       ) : (
-        <ScrollView contentContainerStyle={{ padding: 16 }}>
+        <ScrollView contentContainerStyle={{ padding: theme.spacing.lg }}>
           <View style={{ flexDirection: 'row' }}>
             {WEEKDAY_HEADER.map((d, i) => (
-              <Text key={i} style={{ width: `${100 / 7}%`, textAlign: 'center', fontSize: 11, color: '#666', fontWeight: '600' }}>
+              <Text
+                key={i}
+                style={{
+                  width: `${100 / 7}%`,
+                  textAlign: 'center',
+                  fontSize: 11,
+                  color: theme.colors.textSecondary,
+                  fontWeight: '600',
+                }}
+              >
                 {d}
               </Text>
             ))}
@@ -736,7 +916,7 @@ function CalendarioMes({
                 return (
                   <Pressable key={dateStr} onPress={() => onOpenDay(dateStr)} style={cellWrapperStyle}>
                     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', opacity: 0.35 }}>
-                      <Text style={{ fontSize: 12, color: '#999' }}>{Number(dateStr.slice(8, 10))}</Text>
+                      <Text style={{ fontSize: 12, color: theme.colors.textMuted }}>{Number(dateStr.slice(8, 10))}</Text>
                     </View>
                   </Pressable>
                 );
@@ -745,8 +925,23 @@ function CalendarioMes({
               const daySchedule = dayScheduleFromRange(effectiveSchedule, dateStr, business.timezone);
               const dayAppointments = apptsByDate.get(dateStr) ?? [];
               const { status, activeCount } = computeDayLoad(dateStr, business.timezone, daySchedule, dayAppointments);
-              const isPast = dateStr < today;
               const isToday = dateStr === today;
+              // Pasado = ESTRICTAMENTE antes de hoy (misma `today` que el
+              // marcador de "hoy", en la zona horaria del negocio). Un día
+              // pasado ABIERTO sale de la escala de carga (neutro sólido); si
+              // además estaba cerrado conserva el tratamiento de cerrado.
+              // Solo presentación: `status` (computeDayLoad) no cambia.
+              const isPast = dateStr < today;
+              const pastOpen = isPast && status !== 'closed';
+              const cellBackground = pastOpen ? theme.colors.loadPast : DAY_STATUS_BG[status];
+              const textColor = pastOpen ? theme.colors.textPrimary : DAY_STATUS_TEXT[status];
+              const dayNumber = Number(dateStr.slice(8, 10));
+              const citasLabel = activeCount === 1 ? '1 cita' : `${activeCount} citas`;
+              const cellLabel = isPast
+                ? `${dayNumber}, pasado${status === 'closed' ? ', cerrado' : ''}${activeCount > 0 ? `, ${citasLabel}` : ''}`
+                : `${dayNumber}, ${DAY_STATUS_LABEL[status]}${
+                    status !== 'closed' && activeCount > 0 ? `, ${citasLabel}` : ''
+                  }${isToday ? ', hoy' : ''}`;
 
               // Solo para el listado de escritorio — no toca el cálculo de
               // "carga" (computeDayLoad, sin cambios): vuelve a filtrar las
@@ -764,35 +959,65 @@ function CalendarioMes({
                 <View key={dateStr} style={cellWrapperStyle}>
                   <Pressable
                     onPress={() => onOpenDay(dateStr)}
+                    accessibilityRole="button"
+                    accessibilityLabel={cellLabel}
                     style={{
                       flex: 1,
                       borderRadius: 6,
-                      backgroundColor: DAY_STATUS_BG[status],
-                      borderWidth: isToday ? 2 : 0,
-                      borderColor: '#111',
+                      backgroundColor: cellBackground,
+                      // Cerrado: sin relleno + borde discontinuo (estructura,
+                      // no solo tono) para no confundirse con "libre".
+                      borderWidth: status === 'closed' ? 1 : 0,
+                      borderStyle: 'dashed',
+                      borderColor: theme.colors.borderStrong,
                       padding: 4,
-                      opacity: isPast ? 0.55 : 1,
                     }}
                   >
-                    <Text style={{ fontSize: 12, fontWeight: '600', color: '#111' }}>{Number(dateStr.slice(8, 10))}</Text>
+                    {/* Marcador de "hoy": disco blanco con anillo oscuro
+                        alrededor del número — se ve igual sobre cualquier paso
+                        de la escala (blanco vs paso más oscuro 7.6:1) y sobre
+                        cerrado, sin depender de teal-sobre-teal. */}
+                    <View
+                      style={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: 11,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        alignSelf: 'flex-start',
+                        backgroundColor: isToday ? theme.colors.surface : 'transparent',
+                        borderWidth: isToday ? 2 : 0,
+                        borderColor: theme.colors.textPrimary,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontWeight: '600',
+                          color: isToday ? theme.colors.textPrimary : textColor,
+                        }}
+                      >
+                        {dayNumber}
+                      </Text>
+                    </View>
                     {status === 'closed' ? (
-                      <Text style={{ fontSize: 11, color: '#666' }}>–</Text>
+                      <>
+                        <Text style={{ fontSize: 11, color: textColor }}>–</Text>
+                        {!isNarrow && <Text style={{ fontSize: 10, color: textColor }}>Cerrado</Text>}
+                      </>
                     ) : isNarrow ? (
-                      activeCount > 0 && <Text style={{ fontSize: 11, fontWeight: '600', color: '#111' }}>{activeCount}</Text>
+                      activeCount > 0 && (
+                        <Text style={{ fontSize: 11, fontWeight: '600', color: textColor }}>{activeCount}</Text>
+                      )
                     ) : (
                       <View style={{ marginTop: 2, gap: 1 }}>
                         {previewAppointments.map((a) => (
-                          <Text
-                            key={a.id}
-                            numberOfLines={1}
-                            ellipsizeMode="tail"
-                            style={{ fontSize: 10, color: '#111' }}
-                          >
+                          <Text key={a.id} numberOfLines={1} ellipsizeMode="tail" style={{ fontSize: 10, color: textColor }}>
                             {formatTimeInZone(new Date(a.start_time), business.timezone)} {a.clientName}
                           </Text>
                         ))}
                         {hiddenCount > 0 && (
-                          <Text style={{ fontSize: 10, fontWeight: '600', color: '#666' }}>+{hiddenCount} más</Text>
+                          <Text style={{ fontSize: 10, fontWeight: '600', color: textColor }}>+{hiddenCount} más</Text>
                         )}
                       </View>
                     )}
@@ -802,13 +1027,67 @@ function CalendarioMes({
             })}
           </View>
 
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 16 }}>
-            {(Object.keys(DAY_STATUS_BG) as DayLoadStatus[]).map((status) => (
-              <View key={status} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <View style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: DAY_STATUS_BG[status] }} />
-                <Text style={{ fontSize: 12, color: '#666' }}>{DAY_STATUS_LABEL[status]}</Text>
+          {/* Leyenda: la carga es una ESCALA (degradado vacío -> lleno, claro ->
+              oscuro) y solo vale de hoy en adelante; "Cerrado" y "Pasado" van
+              aparte porque están fuera de ella. */}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', columnGap: 24, rowGap: 12, marginTop: 16 }}>
+            <View>
+              <View style={{ flexDirection: 'row', borderRadius: 4, overflow: 'hidden' }}>
+                {LOAD_SCALE.map((status) => (
+                  <View key={status} style={{ width: LEGEND_STEP_WIDTH, height: 12, backgroundColor: DAY_STATUS_BG[status] }} />
+                ))}
               </View>
-            ))}
+              <View style={{ flexDirection: 'row', marginTop: 4 }}>
+                {LOAD_SCALE.map((status) => (
+                  <Text
+                    key={status}
+                    style={{ width: LEGEND_STEP_WIDTH, textAlign: 'center', fontSize: 12, color: theme.colors.textSecondary }}
+                  >
+                    {DAY_STATUS_LABEL[status]}
+                  </Text>
+                ))}
+              </View>
+            </View>
+            <View>
+              <View
+                style={{
+                  width: LEGEND_STEP_WIDTH,
+                  height: 12,
+                  borderRadius: 4,
+                  backgroundColor: DAY_STATUS_BG.closed,
+                  borderWidth: 1,
+                  borderStyle: 'dashed',
+                  borderColor: theme.colors.borderStrong,
+                }}
+              />
+              <Text
+                style={{
+                  width: LEGEND_STEP_WIDTH,
+                  textAlign: 'center',
+                  marginTop: 4,
+                  fontSize: 12,
+                  color: theme.colors.textSecondary,
+                }}
+              >
+                {DAY_STATUS_LABEL.closed}
+              </Text>
+            </View>
+            <View>
+              <View
+                style={{ width: LEGEND_STEP_WIDTH, height: 12, borderRadius: 4, backgroundColor: theme.colors.loadPast }}
+              />
+              <Text
+                style={{
+                  width: LEGEND_STEP_WIDTH,
+                  textAlign: 'center',
+                  marginTop: 4,
+                  fontSize: 12,
+                  color: theme.colors.textSecondary,
+                }}
+              >
+                Pasado
+              </Text>
+            </View>
           </View>
         </ScrollView>
       )}
@@ -915,24 +1194,34 @@ function CalendarioDia({
 
   return (
     <View style={{ flex: 1 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderColor: '#eee' }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          padding: theme.spacing.lg,
+          borderBottomWidth: 1,
+          borderColor: theme.colors.border,
+        }}
+      >
         <Pressable onPress={() => setSelectedDate((d) => addDaysToDateStr(d, -1))} style={{ padding: 8 }}>
-          <Text style={{ fontSize: 18 }}>‹</Text>
+          <Text style={{ fontSize: 18, color: theme.colors.textPrimary }}>‹</Text>
         </Pressable>
         <View style={{ flex: 1, alignItems: 'center' }}>
-          <Text style={{ fontSize: 15, fontWeight: '600', textTransform: 'capitalize' }}>{longDateLabel}</Text>
+          <Text style={{ fontSize: 15, fontWeight: '600', textTransform: 'capitalize', color: theme.colors.textPrimary }}>
+            {longDateLabel}
+          </Text>
           {selectedDate !== today && (
             <Pressable onPress={() => setSelectedDate(today)} style={{ marginTop: 4 }}>
-              <Text style={{ fontSize: 12, color: '#1d4ed8' }}>Ir a hoy</Text>
+              <Text style={{ fontSize: 12, color: theme.colors.primary }}>Ir a hoy</Text>
             </Pressable>
           )}
         </View>
         <Pressable onPress={() => setSelectedDate((d) => addDaysToDateStr(d, 1))} style={{ padding: 8 }}>
-          <Text style={{ fontSize: 18 }}>›</Text>
+          <Text style={{ fontSize: 18, color: theme.colors.textPrimary }}>›</Text>
         </Pressable>
       </View>
 
-      <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
+      <View style={{ paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.lg }}>
         <Pressable
           onPress={() => router.push({ pathname: '/(business)/cita', params: { date: selectedDate } })}
           style={buttonStyle}
@@ -941,7 +1230,7 @@ function CalendarioDia({
         </Pressable>
       </View>
 
-      <View style={{ flex: 1, padding: 16 }}>
+      <View style={{ flex: 1, padding: theme.spacing.lg }}>
         {loading && !appointments ? (
           <ActivityIndicator />
         ) : (
@@ -955,27 +1244,32 @@ function CalendarioDia({
               const isConfirmingCancel = confirmingCancelId === item.id;
 
               return (
-                <View style={{ padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#eee', gap: 6 }}>
+                <View
+                  style={{ padding: 12, borderRadius: 8, borderWidth: 1, borderColor: theme.colors.border, gap: 6 }}
+                >
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <Text style={{ fontSize: 15, fontWeight: '600' }}>
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: theme.colors.textPrimary }}>
                       {formatTimeInZone(new Date(item.start_time), business.timezone)}–
                       {formatTimeInZone(new Date(item.end_time), business.timezone)}
                     </Text>
-                    <Text style={{ fontSize: 12, fontWeight: '600', color: STATUS_COLORS[item.status] }}>
-                      {STATUS_LABELS[item.status]}
-                    </Text>
+                    <Badge
+                      label={APPOINTMENT_STATUS_PRESENTATION[item.status].label}
+                      tone={APPOINTMENT_STATUS_PRESENTATION[item.status].tone}
+                    />
                   </View>
-                  <Text style={{ fontSize: 14 }}>
+                  <Text style={{ fontSize: 14, color: theme.colors.textPrimary }}>
                     {item.clientName}
                     {item.clientPhone ? ` · ${item.clientPhone}` : ''}
                   </Text>
-                  <Text style={{ fontSize: 13, color: '#666' }}>
+                  <Text style={{ fontSize: 13, color: theme.colors.textSecondary }}>
                     {item.serviceName} · {item.price_at_booking} €
                   </Text>
 
                   {isConfirmingCancel ? (
                     <View style={{ gap: 6, marginTop: 4 }}>
-                      <Text style={{ fontSize: 13, color: '#b91c1c' }}>¿Seguro que quieres cancelar esta cita?</Text>
+                      <Text style={{ fontSize: 13, color: theme.colors.danger }}>
+                        ¿Seguro que quieres cancelar esta cita?
+                      </Text>
                       <View style={{ flexDirection: 'row', gap: 8 }}>
                         <Pressable
                           onPress={() => handleChangeStatus(item.id, 'cancelled')}
@@ -985,19 +1279,25 @@ function CalendarioDia({
                             paddingHorizontal: 10,
                             borderRadius: 6,
                             borderWidth: 1,
-                            borderColor: '#b91c1c',
+                            borderColor: theme.colors.danger,
                           }}
                         >
-                          <Text style={{ fontSize: 13, color: '#b91c1c' }}>
+                          <Text style={{ fontSize: 13, color: theme.colors.danger }}>
                             {isUpdating ? '…' : 'Sí, cancelar'}
                           </Text>
                         </Pressable>
                         <Pressable
                           onPress={() => setConfirmingCancelId(null)}
                           disabled={isUpdating}
-                          style={{ paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6, borderWidth: 1, borderColor: '#ccc' }}
+                          style={{
+                            paddingVertical: 6,
+                            paddingHorizontal: 10,
+                            borderRadius: 6,
+                            borderWidth: 1,
+                            borderColor: theme.colors.primary,
+                          }}
                         >
-                          <Text style={{ fontSize: 13 }}>No, mantener</Text>
+                          <Text style={{ fontSize: 13, color: theme.colors.primary }}>No, mantener</Text>
                         </Pressable>
                       </View>
                     </View>
@@ -1016,10 +1316,15 @@ function CalendarioDia({
                               paddingHorizontal: 10,
                               borderRadius: 6,
                               borderWidth: 1,
-                              borderColor: action.destructive ? '#b91c1c' : '#ccc',
+                              borderColor: action.destructive ? theme.colors.danger : theme.colors.primary,
                             }}
                           >
-                            <Text style={{ fontSize: 13, color: action.destructive ? '#b91c1c' : '#111' }}>
+                            <Text
+                              style={{
+                                fontSize: 13,
+                                color: action.destructive ? theme.colors.danger : theme.colors.primary,
+                              }}
+                            >
                               {isUpdating ? '…' : action.label}
                             </Text>
                           </Pressable>
@@ -1032,10 +1337,10 @@ function CalendarioDia({
                             paddingHorizontal: 10,
                             borderRadius: 6,
                             borderWidth: 1,
-                            borderColor: '#ccc',
+                            borderColor: theme.colors.primary,
                           }}
                         >
-                          <Text style={{ fontSize: 13 }}>Cambiar hora/servicio</Text>
+                          <Text style={{ fontSize: 13, color: theme.colors.primary }}>Cambiar hora/servicio</Text>
                         </Pressable>
                       </View>
                     )
@@ -1043,11 +1348,13 @@ function CalendarioDia({
                 </View>
               );
             }}
-            ListEmptyComponent={<Text>No hay citas este día.</Text>}
+            ListEmptyComponent={
+              <Text style={{ color: theme.colors.textSecondary }}>No hay citas este día.</Text>
+            }
           />
         )}
 
-        {listError && <Text style={{ color: 'crimson', marginTop: 8 }}>{listError}</Text>}
+        {listError && <Text style={{ color: theme.colors.danger, marginTop: 8 }}>{listError}</Text>}
       </View>
     </View>
   );
@@ -1112,17 +1419,29 @@ export default function Calendario() {
 
   if (!business || !selectedDate || !weekStart || !monthStr) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      <Screen style={{ alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator />
-      </View>
+      </Screen>
     );
   }
 
   return (
-    <View style={{ flex: 1 }}>
-      <ViewSelector value={view} onChange={changeView} />
+    <Screen>
+      <View style={COLUMN_STYLE}>
+        <View style={{ paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.lg, paddingBottom: theme.spacing.sm }}>
+          <Text accessibilityRole="header" style={{ ...theme.textStyles.heading1, color: theme.colors.textPrimary }}>
+            Calendario
+          </Text>
+        </View>
+        <ViewSelector value={view} onChange={changeView} />
+      </View>
       {view === 'day' && (
-        <CalendarioDia business={business} selectedDate={selectedDate} setSelectedDate={setSelectedDate} router={router} />
+        // Vista Día: es una lista, no una rejilla — se acota a la misma
+        // columna que la cabecera (panelMaxWidth). Semana y Mes se quedan a
+        // ancho completo (son rejillas densas), sin este límite.
+        <View style={{ flex: 1, ...COLUMN_STYLE }}>
+          <CalendarioDia business={business} selectedDate={selectedDate} setSelectedDate={setSelectedDate} router={router} />
+        </View>
       )}
       {view === 'week' && (
         <CalendarioSemana
@@ -1136,6 +1455,6 @@ export default function Calendario() {
       {view === 'month' && (
         <CalendarioMes business={business} monthStr={monthStr} setMonthStr={setMonthStr} onOpenDay={goToDay} />
       )}
-    </View>
+    </Screen>
   );
 }

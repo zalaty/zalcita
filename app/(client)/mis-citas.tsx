@@ -4,31 +4,10 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { theme } from '@/theme';
-import { Badge, Button, Card, Screen, type BadgeTone } from '@/components/ui';
-import { fetchClientAppointments, STATUS_LABELS, type ClientAppointmentDetails } from '@/lib/appointments';
+import { Badge, Button, Card, Screen } from '@/components/ui';
+import { fetchClientAppointments, type ClientAppointmentDetails } from '@/lib/appointments';
+import { APPOINTMENT_STATUS_PRESENTATION } from '@/lib/appointmentStatusPresentation';
 import { formatLongDateInZone, formatTimeInZone } from '@/lib/timezone';
-import type { AppointmentStatus } from '@/types/database';
-
-// Mapeo estado de cita -> tono de Badge, LOCAL a esta pantalla a propósito
-// (fase 2 del rediseño se hace pantalla a pantalla). Es el mismo reparto
-// que appointmentStatusColors en theme/colors.ts (pending=warning,
-// confirmed=success, completed=info, cancelled=neutral, no_show=danger).
-//
-// TODO al rediseñar app/(business)/calendario.tsx (tanda b): unificar en un
-// solo sitio compartido. Hoy hay TRES copias de este mapeo que coinciden
-// pero podrían divergir si alguien cambia solo una:
-//   - app/(client)/mis-citas.tsx (aquí)
-//   - app/(business)/cliente/[id].tsx
-//   - app/(business)/calendario.tsx — esta todavía sin Badge: sigue usando
-//     STATUS_COLORS/STATUS_LABELS de lib/appointments.ts como color literal
-//     directo, pasará a este mismo mapeo cuando se rediseñe.
-const STATUS_BADGE_TONES: Record<AppointmentStatus, BadgeTone> = {
-  pending: 'warning',
-  confirmed: 'success',
-  completed: 'info',
-  cancelled: 'neutral',
-  no_show: 'danger',
-};
 
 function isUpcoming(a: ClientAppointmentDetails): boolean {
   return (a.status === 'pending' || a.status === 'confirmed') && new Date(a.end_time) > new Date();
@@ -143,7 +122,7 @@ export default function MisCitas() {
           {formatTimeInZone(new Date(a.start_time), a.businessTimezone)}–
           {formatTimeInZone(new Date(a.end_time), a.businessTimezone)}
         </Text>
-        <Badge label={STATUS_LABELS[a.status]} tone={STATUS_BADGE_TONES[a.status]} />
+        <Badge label={APPOINTMENT_STATUS_PRESENTATION[a.status].label} tone={APPOINTMENT_STATUS_PRESENTATION[a.status].tone} />
 
         {withActions &&
           (!a.allowClientCancellation ? (

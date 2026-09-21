@@ -4,37 +4,16 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useBusiness } from '@/context/BusinessContext';
 import { theme } from '@/theme';
-import { Badge, Button, Card, Input, Screen, type BadgeTone } from '@/components/ui';
-import { fetchClientAppointmentHistory, STATUS_LABELS, type ClientHistoryAppointment } from '@/lib/appointments';
+import { Badge, Button, Card, Input, Screen } from '@/components/ui';
+import { fetchClientAppointmentHistory, type ClientHistoryAppointment } from '@/lib/appointments';
+import { APPOINTMENT_STATUS_PRESENTATION } from '@/lib/appointmentStatusPresentation';
 import { formatLongDateInZone, formatTimeInZone } from '@/lib/timezone';
-import type { AppointmentStatus } from '@/types/database';
 
 // Verde de marca de WhatsApp, NO un token del sistema a propósito: es la
 // marca reconocible de un tercero (como un botón "Entrar con Google"), no
 // un color de nuestra paleta — solo se le aplica la forma/tipografía del
 // sistema, no se recolorea a teal.
 const WHATSAPP_GREEN = '#25D366';
-
-// Mapeo estado de cita -> tono de Badge, LOCAL a esta pantalla a propósito
-// (fase 2 del rediseño se hace pantalla a pantalla). Es el mismo reparto
-// que appointmentStatusColors en theme/colors.ts (pending=warning,
-// confirmed=success, completed=info, cancelled=neutral, no_show=danger).
-//
-// TODO al rediseñar app/(business)/calendario.tsx (tanda b): unificar en un
-// solo sitio compartido. Hoy hay TRES copias de este mapeo que coinciden
-// pero podrían divergir si alguien cambia solo una:
-//   - app/(client)/mis-citas.tsx
-//   - app/(business)/cliente/[id].tsx (aquí)
-//   - app/(business)/calendario.tsx — esta todavía sin Badge: sigue usando
-//     STATUS_COLORS/STATUS_LABELS de lib/appointments.ts como color literal
-//     directo, pasará a este mismo mapeo cuando se rediseñe.
-const STATUS_BADGE_TONES: Record<AppointmentStatus, BadgeTone> = {
-  pending: 'warning',
-  confirmed: 'success',
-  completed: 'info',
-  cancelled: 'neutral',
-  no_show: 'danger',
-};
 
 interface ClientProfile {
   id: string;
@@ -358,7 +337,7 @@ export default function ClienteFicha() {
                       {formatLongDateInZone(new Date(a.start_time), business.timezone)} ·{' '}
                       {formatTimeInZone(new Date(a.start_time), business.timezone)}
                     </Text>
-                    <Badge label={STATUS_LABELS[a.status]} tone={STATUS_BADGE_TONES[a.status]} />
+                    <Badge label={APPOINTMENT_STATUS_PRESENTATION[a.status].label} tone={APPOINTMENT_STATUS_PRESENTATION[a.status].tone} />
                   </View>
                   <Text style={{ ...theme.textStyles.small, color: theme.colors.textSecondary }}>
                     {a.serviceName} · {a.price_at_booking} €

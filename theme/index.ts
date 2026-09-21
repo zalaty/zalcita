@@ -27,5 +27,5 @@ export const theme = {
 
 export type Theme = typeof theme;
 
-export { appointmentStatusColors } from './colors';
-export type { ColorTokens } from './colors';
+export { appointmentStatusColors, appointmentStatusTones } from './colors';
+export type { AppointmentStatusTone, ColorTokens } from './colors';
