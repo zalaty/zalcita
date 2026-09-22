@@ -18,6 +18,8 @@ import { theme } from '@/theme';
 import { Screen } from '@/components/ui';
 
 const inputStyle = { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12 };
+// Mismo patrón que ajustes/datos.tsx: email opcional, solo se valida si trae algo.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const buttonStyle = { backgroundColor: '#111', padding: 14, borderRadius: 8 };
 const buttonDisabledStyle = { ...buttonStyle, backgroundColor: '#ccc' };
 const buttonTextStyle = { color: '#fff', textAlign: 'center' as const, fontWeight: '600' as const };
@@ -141,6 +143,7 @@ export default function Cita() {
   const [showNewClientForm, setShowNewClientForm] = useState(false);
   const [newClientName, setNewClientName] = useState('');
   const [newClientPhone, setNewClientPhone] = useState('');
+  const [newClientEmail, setNewClientEmail] = useState('');
   const [savingNewClient, setSavingNewClient] = useState(false);
   const [newClientError, setNewClientError] = useState<string | null>(null);
 
@@ -347,7 +350,10 @@ export default function Cita() {
     setClientPhone('');
   }
 
-  const canCreateClient = newClientName.trim() !== '' && newClientPhone.trim() !== '' && !savingNewClient;
+  const newClientEmailTrimmed = newClientEmail.trim();
+  const newClientEmailValid = newClientEmailTrimmed === '' || EMAIL_RE.test(newClientEmailTrimmed);
+  const canCreateClient =
+    newClientName.trim() !== '' && newClientPhone.trim() !== '' && newClientEmailValid && !savingNewClient;
 
   async function handleCreateClient() {
     if (!business || !canCreateClient) return;
@@ -361,6 +367,7 @@ export default function Cita() {
         auth_user_id: null,
         name: newClientName.trim(),
         phone: newClientPhone.trim(),
+        email: newClientEmailTrimmed === '' ? null : newClientEmailTrimmed.toLowerCase(),
         consent_data_processing: true,
         consent_marketing: false,
         consent_recorded_at: new Date().toISOString(),
@@ -383,6 +390,7 @@ export default function Cita() {
     setShowNewClientForm(false);
     setNewClientName('');
     setNewClientPhone('');
+    setNewClientEmail('');
   }
 
   if (loadError) {
@@ -550,6 +558,21 @@ export default function Cita() {
               keyboardType="phone-pad"
               style={inputStyle}
             />
+            <TextInput
+              placeholder="Email (opcional)"
+              value={newClientEmail}
+              onChangeText={setNewClientEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              style={inputStyle}
+            />
+            {!newClientEmailValid && (
+              <Text style={{ color: 'crimson', fontSize: 13 }}>El email no tiene un formato válido.</Text>
+            )}
+            <Text style={{ ...theme.textStyles.caption, color: theme.colors.textSecondary }}>
+              Al dar de alta a este cliente confirmas que le has informado de que sus datos se usarán para
+              gestionar sus citas.
+            </Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <Pressable
                 onPress={handleCreateClient}
