@@ -32,7 +32,10 @@ export default function AdminLayout() {
 
   return (
     <Stack>
-      <Stack.Screen name="index" options={{ title: 'Administración' }} />
+      {/* headerShown: false — el título se pinta dentro de la columna
+          (ver index.tsx, mismo patrón que el resto del panel). No toca la
+          guarda de arriba: solo apaga la cabecera nativa/flecha volver. */}
+      <Stack.Screen name="index" options={{ title: 'Administración', headerShown: false }} />
     </Stack>
   );
 }

@@ -1,8 +1,11 @@
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { formatLongDateInZone } from '@/lib/timezone';
+import { theme } from '@/theme';
+import { Badge, Button, Screen } from '@/components/ui';
 
 interface BusinessRow {
   id: string;
@@ -14,10 +17,28 @@ interface BusinessRow {
   timezone: string;
 }
 
-const buttonStyle = { backgroundColor: '#111', padding: 10, borderRadius: 8 };
-const buttonTextStyle = { color: '#fff', textAlign: 'center' as const, fontWeight: '600' as const };
-const cardStyle = { padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#eee', gap: 6 };
-const sectionTitleStyle = { fontSize: 16, fontWeight: '700' as const };
+const cardStyle = {
+  padding: theme.spacing.md,
+  borderRadius: theme.radii.md,
+  borderWidth: 1,
+  borderColor: theme.colors.border,
+  backgroundColor: theme.colors.surface,
+  gap: theme.spacing.xs,
+  ...theme.shadows.sm,
+};
+
+// /admin vive FUERA de (business) a propósito (ver app/admin/_layout.tsx):
+// su guarda es solo session + is_platform_admin(), independiente de tener
+// negocio propio. Por eso esta tira NO es el <Tabs> real del panel — es una
+// fila con el mismo aspecto que navega a (business)/... por ruta explícita.
+// Ninguna se marca "activa": Administración no es una de las cuatro
+// secciones. Cuando se rediseñe la tab bar real, alinear esta tira también.
+const NAV_ITEMS = [
+  { label: 'Calendario', href: '/(business)/calendario' as const },
+  { label: 'Clientes', href: '/(business)/clientes' as const },
+  { label: 'Resumen', href: '/(business)/resumen' as const },
+  { label: 'Ajustes', href: '/(business)/ajustes' as const },
+];
 
 function contactLabel(b: BusinessRow): string {
   const parts = [b.phone, b.email].filter((v): v is string => !!v);
@@ -29,6 +50,9 @@ function contactLabel(b: BusinessRow): string {
 // hace el propio admin autenticado, así que el trigger (0004/0006) lo deja
 // pasar sin tocar nada más — is_platform_admin() ya es cierto para él.
 export default function AdminNegocios() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+
   const [businesses, setBusinesses] = useState<BusinessRow[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
@@ -101,9 +125,9 @@ export default function AdminNegocios() {
 
   if (loading && !businesses) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      <Screen style={{ alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator />
-      </View>
+      </Screen>
     );
   }
 
@@ -116,47 +140,60 @@ export default function AdminNegocios() {
 
     return (
       <View key={b.id} style={cardStyle}>
-        <Text style={{ fontSize: 15, fontWeight: '600' }}>{b.name}</Text>
-        <Text style={{ fontSize: 13, color: '#666' }}>{contactLabel(b)}</Text>
-        <Text style={{ fontSize: 12, color: '#999' }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: theme.spacing.sm }}>
+          <Text style={{ ...theme.textStyles.bodyMedium, color: theme.colors.textPrimary, flex: 1 }}>{b.name}</Text>
+          <Badge label={b.active ? 'Aprobado' : 'Pendiente'} tone={b.active ? 'success' : 'warning'} />
+        </View>
+        <Text style={{ ...theme.textStyles.small, color: theme.colors.textSecondary }}>{contactLabel(b)}</Text>
+        <Text style={{ ...theme.textStyles.caption, color: theme.colors.textMuted }}>
           Registrado el {formatLongDateInZone(new Date(b.created_at), b.timezone)}
         </Text>
 
         {action === 'approve' ? (
-          <Pressable onPress={() => handleApprove(b.id)} disabled={isActing} style={buttonStyle}>
-            <Text style={buttonTextStyle}>{isActing ? 'Aprobando…' : 'Aprobar'}</Text>
-          </Pressable>
+          <Button label={isActing ? 'Aprobando…' : 'Aprobar'} onPress={() => handleApprove(b.id)} disabled={isActing} />
         ) : isConfirming ? (
-          <View style={{ gap: 6 }}>
-            <Text style={{ fontSize: 13, color: '#b91c1c' }}>
+          <View style={{ gap: theme.spacing.sm, marginTop: theme.spacing.xs }}>
+            <Text style={{ ...theme.textStyles.small, color: theme.colors.danger }}>
               Este negocio dejará de ser visible para clientes y no podrá recibir nuevas reservas. Las citas ya
               existentes no se borran, pero el negocio queda congelado.
             </Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <Pressable
-                onPress={() => handleDeactivate(b.id)}
-                disabled={isActing}
-                style={{ flex: 1, padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#b91c1c' }}
-              >
-                <Text style={{ color: '#b91c1c', textAlign: 'center', fontWeight: '600' }}>
-                  {isActing ? '…' : 'Sí, desactivar'}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setConfirmingDeactivateId(null)}
-                disabled={isActing}
-                style={{ flex: 1, padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#ccc' }}
-              >
-                <Text style={{ textAlign: 'center' }}>No, mantener</Text>
-              </Pressable>
+            <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+              <View style={{ flex: 1 }}>
+                <Button
+                  label={isActing ? '…' : 'Sí, desactivar'}
+                  onPress={() => handleDeactivate(b.id)}
+                  disabled={isActing}
+                  variant="danger"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Button
+                  label="No, mantener"
+                  onPress={() => setConfirmingDeactivateId(null)}
+                  disabled={isActing}
+                  variant="secondary"
+                />
+              </View>
             </View>
           </View>
         ) : (
+          // Fuera del Button del sistema a propósito: aquí SÍ hace falta un
+          // outline en tono danger ("acción de riesgo, todavía no confirmada"),
+          // y la variante "secondary" de Button siempre es teal — no hay
+          // combinación outline+danger en el componente. Mismos tokens, solo
+          // el hex suelto de antes pasa a theme.colors.danger.
           <Pressable
             onPress={() => setConfirmingDeactivateId(b.id)}
-            style={{ padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#b91c1c' }}
+            style={{
+              paddingVertical: theme.spacing.md,
+              paddingHorizontal: theme.spacing.lg,
+              borderRadius: theme.radii.md,
+              borderWidth: 1,
+              borderColor: theme.colors.danger,
+              alignItems: 'center',
+            }}
           >
-            <Text style={{ color: '#b91c1c', textAlign: 'center', fontWeight: '600' }}>Desactivar</Text>
+            <Text style={{ ...theme.textStyles.bodyMedium, color: theme.colors.danger }}>Desactivar</Text>
           </Pressable>
         )}
       </View>
@@ -164,26 +201,77 @@ export default function AdminNegocios() {
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 24 }}>
-      <View style={{ gap: 12 }}>
-        <Text style={sectionTitleStyle}>Pendientes de aprobación</Text>
-        {pending.length === 0 ? (
-          <Text style={{ color: '#666' }}>No hay negocios pendientes.</Text>
-        ) : (
-          pending.map((b) => renderBusiness(b, 'approve'))
-        )}
-      </View>
+    <Screen>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          padding: theme.spacing.lg,
+          gap: theme.spacing.xl,
+          width: '100%',
+          maxWidth: theme.layout.panelMaxWidth,
+          alignSelf: 'center',
+        }}
+      >
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text accessibilityRole="header" style={{ ...theme.textStyles.heading1, color: theme.colors.textPrimary }}>
+            Administración
+          </Text>
+          {/* Navegación EXPLÍCITA a Ajustes, nunca router.back(): /admin no
+              está dentro del stack de (business), así que "atrás" no tiene
+              garantizado a dónde cae (mismo motivo que el fix de
+              cliente/[id].tsx). */}
+          <Pressable onPress={() => router.replace('/(business)/ajustes')}>
+            <Text style={{ ...theme.textStyles.small, color: theme.colors.primary }}>‹ Ajustes</Text>
+          </Pressable>
+        </View>
 
-      <View style={{ gap: 12 }}>
-        <Text style={sectionTitleStyle}>Negocios aprobados</Text>
-        {approved.length === 0 ? (
-          <Text style={{ color: '#666' }}>No hay negocios aprobados todavía.</Text>
-        ) : (
-          approved.map((b) => renderBusiness(b, 'deactivate'))
-        )}
-      </View>
+        <View style={{ gap: theme.spacing.md }}>
+          <Text style={{ ...theme.textStyles.heading2, color: theme.colors.textPrimary }}>Negocios pendientes</Text>
+          {pending.length === 0 ? (
+            <Text style={{ ...theme.textStyles.body, color: theme.colors.textSecondary }}>
+              No hay negocios pendientes.
+            </Text>
+          ) : (
+            pending.map((b) => renderBusiness(b, 'approve'))
+          )}
+        </View>
 
-      {listError && <Text style={{ color: 'crimson' }}>{listError}</Text>}
-    </ScrollView>
+        <View style={{ gap: theme.spacing.md }}>
+          <Text style={{ ...theme.textStyles.heading2, color: theme.colors.textPrimary }}>Negocios aprobados</Text>
+          {approved.length === 0 ? (
+            <Text style={{ ...theme.textStyles.body, color: theme.colors.textSecondary }}>
+              No hay negocios aprobados todavía.
+            </Text>
+          ) : (
+            approved.map((b) => renderBusiness(b, 'deactivate'))
+          )}
+        </View>
+
+        {listError && <Text style={{ ...theme.textStyles.body, color: theme.colors.danger }}>{listError}</Text>}
+      </ScrollView>
+
+      {/* Tira de navegación con el mismo aspecto que la tab bar del panel —
+          NO es el <Tabs> real (ver NAV_ITEMS): admin queda fuera de
+          (business) para no acoplar su guarda a role==='business'. */}
+      <View
+        style={{
+          flexDirection: 'row',
+          borderTopWidth: 1,
+          borderColor: theme.colors.border,
+          backgroundColor: theme.colors.surface,
+          paddingBottom: insets.bottom,
+        }}
+      >
+        {NAV_ITEMS.map((item) => (
+          <Pressable
+            key={item.href}
+            onPress={() => router.replace(item.href)}
+            style={{ flex: 1, alignItems: 'center', paddingVertical: theme.spacing.sm }}
+          >
+            <Text style={{ ...theme.textStyles.small, color: theme.colors.textSecondary }}>{item.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+    </Screen>
   );
 }
