@@ -68,14 +68,23 @@ const DEFAULT_GRID_BOUNDS = { startMin: 8 * 60, endMin: 20 * 60 };
 // dueño que también debe poder mirar hacia atrás (un lunes ya pasado de
 // esta semana) sin que sus huecos desaparezcan solo por ser del pasado.
 const EARLY_EPOCH = new Date(0);
-const COLOR_CLOSED_BG = '#f2f2f2';
-const COLOR_BLOCKED_BG = '#e5e5e5';
+// Mismo tono que loadClosed (vista Mes): "cerrado" = tono de fondo de
+// página, en ambas vistas del calendario. Antes '#f2f2f2', valor propio sin
+// pasar por el theme; background es visualmente indistinguible (diferencia
+// de ~6/255 por canal, imperceptible en un fondo plano).
+const COLOR_CLOSED_BG = theme.colors.background;
+// Antes '#e5e5e5' suelto; disabledBg coincide casi exacto (~2/255 por canal).
+const COLOR_BLOCKED_BG = theme.colors.disabledBg;
 // Huecos libres: NUNCA verde — el estado "confirmed" ya usa verde oscuro
 // (theme success, ver appointmentBlockAppearance), y un verde claro al lado se confundía
 // con eso (poco contraste, además, para daltonismo). Blanco + borde
 // punteado + etiqueta "Libre": la distinción libre/ocupado no depende del
 // matiz de color en ningún punto.
-const COLOR_FREE_BG = '#ffffff';
+const COLOR_FREE_BG = theme.colors.surface; // antes '#ffffff' suelto — mismo valor exacto
+// SIN tokenizar a propósito (paso 1, modo oscuro): son un gris-azulado
+// FRÍO, deliberadamente distinto de los grises cálidos del resto del theme
+// (border/borderStrong/textMuted) — no hay token equivalente sin cambiar
+// el aspecto. Ver reporte de la sesión que los dejó pendientes.
 const COLOR_FREE_BORDER = '#64748b';
 const COLOR_FREE_TEXT = '#334155';
 // Bajo este alto en píxeles (PX_PER_MINUTE=1 -> px = minutos) la etiqueta
