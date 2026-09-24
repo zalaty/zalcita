@@ -1,15 +1,12 @@
 import { useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
+import { theme } from '@/theme';
+import { Button, Input, Screen } from '@/components/ui';
 
 type Step = 'form' | 'code';
-
-const inputStyle = { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12 };
-const buttonStyle = { backgroundColor: '#111', padding: 14, borderRadius: 8 };
-const buttonDisabledStyle = { ...buttonStyle, backgroundColor: '#ccc' };
-const buttonTextStyle = { color: '#fff', textAlign: 'center' as const, fontWeight: '600' as const };
 
 // Alta autoservicio de negocio. El negocio queda active=false (pendiente
 // de aprobación) hasta que un administrador de plataforma lo apruebe — eso
@@ -106,74 +103,87 @@ export default function RegistroNegocio() {
 
   if (step === 'code') {
     return (
-      <View style={{ flex: 1, padding: 24, justifyContent: 'center', gap: 16 }}>
-        <Text style={{ fontSize: 20, fontWeight: '700' }}>Revisa tu correo</Text>
-        <Text style={{ color: '#666' }}>
-          Te hemos enviado un código a {email}. Introdúcelo aquí para confirmar tu cuenta de
-          negocio.
-        </Text>
-
-        <TextInput
-          placeholder="Código recibido por correo"
-          value={code}
-          onChangeText={setCode}
-          keyboardType="number-pad"
-          style={inputStyle}
-        />
-
-        <Pressable
-          onPress={handleVerifyCode}
-          disabled={!canSubmitCode}
-          style={canSubmitCode ? buttonStyle : buttonDisabledStyle}
+      <Screen>
+        <ScrollView
+          contentContainerStyle={{
+            padding: theme.spacing.lg,
+            gap: theme.spacing.md,
+            width: '100%',
+            maxWidth: theme.layout.panelMaxWidth,
+            alignSelf: 'center',
+          }}
         >
-          <Text style={buttonTextStyle}>{submitting ? 'Confirmando…' : 'Confirmar código'}</Text>
-        </Pressable>
+          <Text accessibilityRole="header" style={{ ...theme.textStyles.heading1, color: theme.colors.textPrimary }}>
+            Revisa tu correo
+          </Text>
+          <Text style={{ ...theme.textStyles.body, color: theme.colors.textSecondary }}>
+            Te hemos enviado un código a {email}. Introdúcelo aquí para confirmar tu cuenta de
+            negocio.
+          </Text>
 
-        <Pressable onPress={handleResendCode}>
-          <Text style={{ color: '#666', textAlign: 'center' }}>Reenviar código</Text>
-        </Pressable>
+          <Input
+            placeholder="Código recibido por correo"
+            value={code}
+            onChangeText={setCode}
+            keyboardType="number-pad"
+          />
 
-        {error && <Text style={{ color: 'crimson' }}>{error}</Text>}
-      </View>
+          <Button
+            label={submitting ? 'Confirmando…' : 'Confirmar código'}
+            onPress={handleVerifyCode}
+            disabled={!canSubmitCode}
+          />
+
+          <Pressable onPress={handleResendCode}>
+            <Text style={{ ...theme.textStyles.small, color: theme.colors.primary, textAlign: 'center' }}>
+              Reenviar código
+            </Text>
+          </Pressable>
+
+          {error && <Text style={{ ...theme.textStyles.body, color: theme.colors.danger }}>{error}</Text>}
+        </ScrollView>
+      </Screen>
     );
   }
 
   return (
-    <View style={{ flex: 1, padding: 24, justifyContent: 'center', gap: 16 }}>
-      <Text style={{ fontSize: 20, fontWeight: '700' }}>Registra tu negocio</Text>
-      <Text style={{ color: '#666' }}>
-        Tu negocio queda pendiente de aprobación. Podrás entrar a configurarlo mientras tanto,
-        pero no recibirá reservas hasta que lo aprobemos.
-      </Text>
+    <Screen>
+      <ScrollView
+        contentContainerStyle={{
+          padding: theme.spacing.lg,
+          gap: theme.spacing.md,
+          width: '100%',
+          maxWidth: theme.layout.panelMaxWidth,
+          alignSelf: 'center',
+        }}
+      >
+        <Text accessibilityRole="header" style={{ ...theme.textStyles.heading1, color: theme.colors.textPrimary }}>
+          Registra tu negocio
+        </Text>
+        <Text style={{ ...theme.textStyles.body, color: theme.colors.textSecondary }}>
+          Tu negocio queda pendiente de aprobación. Podrás entrar a configurarlo mientras tanto,
+          pero no recibirá reservas hasta que lo aprobemos.
+        </Text>
 
-      <TextInput
-        placeholder="Nombre del negocio"
-        value={businessName}
-        onChangeText={setBusinessName}
-        style={inputStyle}
-      />
-      <TextInput placeholder="Tu nombre" value={ownerName} onChangeText={setOwnerName} style={inputStyle} />
-      <TextInput
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        style={inputStyle}
-      />
-      <TextInput
-        placeholder="Contraseña"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        style={inputStyle}
-      />
+        <Input placeholder="Nombre del negocio" value={businessName} onChangeText={setBusinessName} />
+        <Input placeholder="Tu nombre" value={ownerName} onChangeText={setOwnerName} />
+        <Input
+          placeholder="Email"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+        />
+        <Input placeholder="Contraseña" value={password} onChangeText={setPassword} secureTextEntry />
 
-      <Pressable onPress={handleSubmit} disabled={!canSubmitForm} style={canSubmitForm ? buttonStyle : buttonDisabledStyle}>
-        <Text style={buttonTextStyle}>{submitting ? 'Creando cuenta…' : 'Crear negocio'}</Text>
-      </Pressable>
+        <Button
+          label={submitting ? 'Creando cuenta…' : 'Crear negocio'}
+          onPress={handleSubmit}
+          disabled={!canSubmitForm}
+        />
 
-      {error && <Text style={{ color: 'crimson' }}>{error}</Text>}
-    </View>
+        {error && <Text style={{ ...theme.textStyles.body, color: theme.colors.danger }}>{error}</Text>}
+      </ScrollView>
+    </Screen>
   );
 }
