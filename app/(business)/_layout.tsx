@@ -1,7 +1,19 @@
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, Text, View, type ColorValue } from 'react-native';
 import { Redirect, Tabs } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext';
 import { BusinessProvider, useBusiness } from '@/context/BusinessContext';
+import { theme } from '@/theme';
+
+const TAB_ICON_SIZE = 24;
+
+// Relleno cuando está activa, contorno cuando no — mismo par outline/filled
+// para las 4 secciones (Ionicons los trae para las cuatro).
+function tabIcon(nameOutline: keyof typeof Ionicons.glyphMap, nameFilled: keyof typeof Ionicons.glyphMap) {
+  return ({ focused, color }: { focused: boolean; color: ColorValue }) => (
+    <Ionicons name={focused ? nameFilled : nameOutline} size={TAB_ICON_SIZE} color={color} />
+  );
+}
 
 // Protegido: solo usuarios con fila en business_members llegan aquí.
 // index.tsx ya redirige por rol, pero esta guarda evita acceso directo por URL.
@@ -68,11 +80,29 @@ function BusinessPanel() {
           usar la cabecera nativa (en web queda pegada a la esquina, fuera
           del eje del contenido). calendario/cita ya se han rediseñado
           (tanda del calendario) y pintan su propio título con Screen. */}
-      <Tabs screenOptions={{ headerShown: false }}>
-        <Tabs.Screen name="calendario" options={{ title: 'Calendario' }} />
-        <Tabs.Screen name="clientes" options={{ title: 'Clientes' }} />
-        <Tabs.Screen name="resumen" options={{ title: 'Resumen' }} />
-        <Tabs.Screen name="ajustes" options={{ title: 'Ajustes' }} />
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: theme.colors.primary,
+          tabBarInactiveTintColor: theme.colors.textSecondary,
+        }}
+      >
+        <Tabs.Screen
+          name="calendario"
+          options={{ title: 'Calendario', tabBarIcon: tabIcon('calendar-outline', 'calendar') }}
+        />
+        <Tabs.Screen
+          name="clientes"
+          options={{ title: 'Clientes', tabBarIcon: tabIcon('people-outline', 'people') }}
+        />
+        <Tabs.Screen
+          name="resumen"
+          options={{ title: 'Resumen', tabBarIcon: tabIcon('bar-chart-outline', 'bar-chart') }}
+        />
+        <Tabs.Screen
+          name="ajustes"
+          options={{ title: 'Ajustes', tabBarIcon: tabIcon('settings-outline', 'settings') }}
+        />
         {/* Pantalla de crear/mover cita: navegable desde calendario.tsx,
             pero no es una pestaña — mismo patrón que disponibilidad/
             confirmacion en (client)/_layout.tsx. */}

@@ -2,10 +2,13 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
 import { formatLongDateInZone } from '@/lib/timezone';
 import { theme } from '@/theme';
 import { Badge, Button, Screen } from '@/components/ui';
+
+const TAB_ICON_SIZE = 24;
 
 interface BusinessRow {
   id: string;
@@ -34,10 +37,10 @@ const cardStyle = {
 // Ninguna se marca "activa": Administración no es una de las cuatro
 // secciones. Cuando se rediseñe la tab bar real, alinear esta tira también.
 const NAV_ITEMS = [
-  { label: 'Calendario', href: '/(business)/calendario' as const },
-  { label: 'Clientes', href: '/(business)/clientes' as const },
-  { label: 'Resumen', href: '/(business)/resumen' as const },
-  { label: 'Ajustes', href: '/(business)/ajustes' as const },
+  { label: 'Calendario', href: '/(business)/calendario' as const, icon: 'calendar-outline' as const },
+  { label: 'Clientes', href: '/(business)/clientes' as const, icon: 'people-outline' as const },
+  { label: 'Resumen', href: '/(business)/resumen' as const, icon: 'bar-chart-outline' as const },
+  { label: 'Ajustes', href: '/(business)/ajustes' as const, icon: 'settings-outline' as const },
 ];
 
 function contactLabel(b: BusinessRow): string {
@@ -266,8 +269,11 @@ export default function AdminNegocios() {
           <Pressable
             key={item.href}
             onPress={() => router.replace(item.href)}
-            style={{ flex: 1, alignItems: 'center', paddingVertical: theme.spacing.sm }}
+            style={{ flex: 1, alignItems: 'center', gap: 2, paddingVertical: theme.spacing.sm }}
           >
+            {/* Siempre en tono inactivo: Administración no es una de estas
+                cuatro secciones, así que ninguna se marca como activa. */}
+            <Ionicons name={item.icon} size={TAB_ICON_SIZE} color={theme.colors.textSecondary} />
             <Text style={{ ...theme.textStyles.small, color: theme.colors.textSecondary }}>{item.label}</Text>
           </Pressable>
         ))}
