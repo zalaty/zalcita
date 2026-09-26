@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
-import { theme } from '@/theme';
+import { useTheme } from '@/context/ThemeContext';
 import { Button, Card, Input } from '@/components/ui';
 
 type Mode = 'client' | 'business';
@@ -16,6 +16,7 @@ type Mode = 'client' | 'business';
 //    app/(auth)/registro-negocio.tsx (enlazada más abajo); esta pantalla es
 //    solo para negocios que ya tienen cuenta.
 export default function Login() {
+  const theme = useTheme();
   const router = useRouter();
   const [mode, setMode] = useState<Mode>('client');
   const [clientEmail, setClientEmail] = useState('');

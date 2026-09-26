@@ -3,7 +3,7 @@ import { Pressable, ScrollView, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
-import { theme } from '@/theme';
+import { useTheme } from '@/context/ThemeContext';
 import { Button, Input, Screen } from '@/components/ui';
 
 type Step = 'form' | 'code';
@@ -25,6 +25,7 @@ type Step = 'form' | 'code';
 // verificar, AuthContext.resolveRole detecta esos metadatos y crea el
 // negocio automáticamente — ver context/AuthContext.tsx.
 export default function RegistroNegocio() {
+  const theme = useTheme();
   const router = useRouter();
   const { refreshRole } = useAuth();
 

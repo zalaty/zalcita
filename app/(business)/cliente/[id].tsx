@@ -3,10 +3,11 @@ import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'r
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useBusiness } from '@/context/BusinessContext';
-import { theme } from '@/theme';
+import { useTheme } from '@/context/ThemeContext';
+import { appointmentStatusColors, appointmentStatusTones } from '@/theme';
 import { Badge, Button, Card, Input, Screen } from '@/components/ui';
 import { fetchClientAppointmentHistory, type ClientHistoryAppointment } from '@/lib/appointments';
-import { APPOINTMENT_STATUS_PRESENTATION } from '@/lib/appointmentStatusPresentation';
+import { appointmentStatusPresentation } from '@/lib/appointmentStatusPresentation';
 import { formatLongDateInZone, formatTimeInZone } from '@/lib/timezone';
 
 // Verde de marca de WhatsApp, NO un token del sistema a propósito: es la
@@ -42,9 +43,16 @@ function normalizePhoneForWhatsApp(phone: string): { valid: boolean; number: str
 }
 
 export default function ClienteFicha() {
+  const theme = useTheme();
   const router = useRouter();
   const { business } = useBusiness();
   const { id: clientId } = useLocalSearchParams<{ id: string }>();
+  // appointmentStatusColors/appointmentStatusTones (theme/colors.ts) son hoy
+  // en sí mismos estáticos (solo paleta clara) — mismo patrón que
+  // mis-citas.tsx: se recalcula en cada render en vez de usar la constante
+  // de coexistencia, para que esta pantalla ya esté lista cuando esos dos
+  // mapas también sean reactivos.
+  const statusPresentation = appointmentStatusPresentation(appointmentStatusTones, appointmentStatusColors);
 
   const [client, setClient] = useState<ClientProfile | null>(null);
   const [history, setHistory] = useState<ClientHistoryAppointment[] | null>(null);
@@ -337,7 +345,7 @@ export default function ClienteFicha() {
                       {formatLongDateInZone(new Date(a.start_time), business.timezone)} ·{' '}
                       {formatTimeInZone(new Date(a.start_time), business.timezone)}
                     </Text>
-                    <Badge label={APPOINTMENT_STATUS_PRESENTATION[a.status].label} tone={APPOINTMENT_STATUS_PRESENTATION[a.status].tone} />
+                    <Badge label={statusPresentation[a.status].label} tone={statusPresentation[a.status].tone} />
                   </View>
                   <Text style={{ ...theme.textStyles.small, color: theme.colors.textSecondary }}>
                     {a.serviceName} · {a.price_at_booking} €

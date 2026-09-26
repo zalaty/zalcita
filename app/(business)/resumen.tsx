@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-nati
 import { useFocusEffect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useBusiness } from '@/context/BusinessContext';
-import { theme } from '@/theme';
+import { useTheme } from '@/context/ThemeContext';
 import { Card, Screen } from '@/components/ui';
 import {
   addMonthsToMonthStr,
@@ -42,6 +42,7 @@ function computeComparison(current: number, previous: number): Comparison {
 // (misma lección que el resto del sistema: sombra sola no basta cuando
 // caja y contenedor comparten el mismo blanco).
 function StatBox({ value, label }: { value: string; label: string }) {
+  const theme = useTheme();
   return (
     <View
       style={{
@@ -67,6 +68,7 @@ function StatBox({ value, label }: { value: string; label: string }) {
 // ficha de cliente: completadas = ingreso real, confirmadas futuras =
 // previsto, aparte.
 export default function Resumen() {
+  const theme = useTheme();
   const { business } = useBusiness();
 
   const [monthStr, setMonthStr] = useState('');

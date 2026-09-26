@@ -3,10 +3,11 @@ import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
-import { theme } from '@/theme';
+import { useTheme } from '@/context/ThemeContext';
+import { appointmentStatusColors, appointmentStatusTones } from '@/theme';
 import { Badge, Button, Card, Screen } from '@/components/ui';
 import { fetchClientAppointments, type ClientAppointmentDetails } from '@/lib/appointments';
-import { APPOINTMENT_STATUS_PRESENTATION } from '@/lib/appointmentStatusPresentation';
+import { appointmentStatusPresentation } from '@/lib/appointmentStatusPresentation';
 import { formatLongDateInZone, formatTimeInZone } from '@/lib/timezone';
 
 function isUpcoming(a: ClientAppointmentDetails): boolean {
@@ -22,8 +23,15 @@ function hoursUntilStart(a: ClientAppointmentDetails): number {
 // esta pantalla solo necesita mandar status/cancelled_at, y confiar en que
 // la BD rechaza cualquier otra cosa.
 export default function MisCitas() {
+  const theme = useTheme();
   const router = useRouter();
   const { session, loading: authLoading } = useAuth();
+  // appointmentStatusColors/appointmentStatusTones (theme/colors.ts) son hoy
+  // en sí mismos estáticos (solo paleta clara) — se recalcula en cada render
+  // para que, el día que esos dos mapas también sean reactivos, esta
+  // pantalla ya llame a la función parametrizada en vez de a la constante
+  // estática de coexistencia (mismo patrón que Badge/badgeToneStyles).
+  const statusPresentation = appointmentStatusPresentation(appointmentStatusTones, appointmentStatusColors);
 
   const [appointments, setAppointments] = useState<ClientAppointmentDetails[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -122,7 +130,7 @@ export default function MisCitas() {
           {formatTimeInZone(new Date(a.start_time), a.businessTimezone)}–
           {formatTimeInZone(new Date(a.end_time), a.businessTimezone)}
         </Text>
-        <Badge label={APPOINTMENT_STATUS_PRESENTATION[a.status].label} tone={APPOINTMENT_STATUS_PRESENTATION[a.status].tone} />
+        <Badge label={statusPresentation[a.status].label} tone={statusPresentation[a.status].tone} />
 
         {withActions &&
           (!a.allowClientCancellation ? (

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
-import { theme } from '@/theme';
+import { useTheme } from '@/context/ThemeContext';
 import { Card, Screen } from '@/components/ui';
 import type { Service } from '@/types/database';
 
@@ -16,6 +16,7 @@ import type { Service } from '@/types/database';
 //  3. Crear perfil / login (solo aquí se exige, ver flujo 1.2 y 1.3)
 //  4. Confirmación + reserva + pago condicional (payment_policy del negocio)
 export default function ClientHome() {
+  const theme = useTheme();
   const router = useRouter();
   const { slug } = useLocalSearchParams<{ slug?: string }>();
   const { width } = useWindowDimensions();

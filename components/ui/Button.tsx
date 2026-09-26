@@ -1,5 +1,6 @@
 import { ActivityIndicator, Pressable, Text, type GestureResponderEvent, type ViewStyle } from 'react-native';
-import { theme } from '@/theme';
+import type { Theme } from '@/theme';
+import { useTheme } from '@/context/ThemeContext';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'danger';
 
@@ -11,7 +12,10 @@ export interface ButtonProps {
   loading?: boolean;
 }
 
-function getTextColor(variant: ButtonVariant, isDisabled: boolean): string {
+// Reciben `theme` como parámetro (no lo importan) — así se llaman en
+// render con el theme REACTIVO de useTheme(), en vez de vivir a nivel de
+// módulo enganchadas al import estático.
+function getTextColor(variant: ButtonVariant, isDisabled: boolean, theme: Theme): string {
   if (isDisabled) return theme.colors.disabledText;
   if (variant === 'secondary') return theme.colors.primary;
   return theme.colors.textOnPrimary;
@@ -22,7 +26,7 @@ function getTextColor(variant: ButtonVariant, isDisabled: boolean): string {
 // sea cual sea su color de marca, en vez de tener una versión desteñida
 // por variante (theme.colors.primaryDisabled queda disponible si algún día
 // hace falta un disabled con tinte de marca en un sitio concreto).
-function getContainerStyle(variant: ButtonVariant, isDisabled: boolean, pressed: boolean): ViewStyle {
+function getContainerStyle(variant: ButtonVariant, isDisabled: boolean, pressed: boolean, theme: Theme): ViewStyle {
   const base: ViewStyle = {
     borderRadius: theme.radii.md,
     paddingVertical: theme.spacing.md,
@@ -53,8 +57,9 @@ function getContainerStyle(variant: ButtonVariant, isDisabled: boolean, pressed:
 // Botón base del sistema — variantes primario/secundario/peligro, todas
 // consumiendo solo tokens de theme/ (nunca un hex suelto).
 export function Button({ label, onPress, variant = 'primary', disabled, loading }: ButtonProps) {
+  const theme = useTheme();
   const isDisabled = !!(disabled || loading);
-  const textColor = getTextColor(variant, isDisabled);
+  const textColor = getTextColor(variant, isDisabled, theme);
 
   return (
     <Pressable
@@ -62,7 +67,7 @@ export function Button({ label, onPress, variant = 'primary', disabled, loading 
       disabled={isDisabled}
       accessibilityRole="button"
       accessibilityState={{ disabled: isDisabled }}
-      style={({ pressed }) => getContainerStyle(variant, isDisabled, pressed)}
+      style={({ pressed }) => getContainerStyle(variant, isDisabled, pressed, theme)}
     >
       {loading ? (
         <ActivityIndicator color={textColor} />

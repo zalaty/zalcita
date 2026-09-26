@@ -3,7 +3,7 @@ import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native
 import { useFocusEffect, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useBusiness } from '@/context/BusinessContext';
-import { theme } from '@/theme';
+import { useTheme } from '@/context/ThemeContext';
 import { Input, Screen } from '@/components/ui';
 
 interface ClientRow {
@@ -17,6 +17,7 @@ interface ClientRow {
 // pueda hacer con ellos aquí — sus citas pasadas siguen intactas en la BD
 // por integridad referencial, solo desaparecen de esta lista de gestión.
 export default function Clientes() {
+  const theme = useTheme();
   const router = useRouter();
   const { business } = useBusiness();
 

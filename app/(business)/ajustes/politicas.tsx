@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, Switch, Text, View } from 're
 import { useFocusEffect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useBusiness } from '@/context/BusinessContext';
-import { theme } from '@/theme';
+import { useTheme } from '@/context/ThemeContext';
 import { Button, Card, Input, Screen } from '@/components/ui';
 import type { PaymentPolicy } from '@/types/database';
 
@@ -28,41 +28,46 @@ const PAYMENT_OPTIONS: { value: PaymentPolicy; label: string }[] = [
   { value: 'full', label: 'Pago completo online al reservar' },
 ];
 
-function chipStyle(selected: boolean) {
-  return {
-    paddingVertical: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.md,
-    borderRadius: theme.radii.md,
-    borderWidth: 1,
-    borderColor: selected ? theme.colors.primary : theme.colors.border,
-    backgroundColor: selected ? theme.colors.primary : 'transparent',
-  };
-}
-
-function chipTextStyle(selected: boolean) {
-  return {
-    fontSize: theme.fontSizes.sm,
-    color: selected ? theme.colors.textOnPrimary : theme.colors.textPrimary,
-    fontWeight: selected ? theme.fontWeights.semibold : theme.fontWeights.regular,
-  };
-}
-
-function optionRowStyle(selected: boolean) {
-  return {
-    padding: theme.spacing.md,
-    borderRadius: theme.radii.md,
-    borderWidth: selected ? 2 : 1,
-    borderColor: selected ? theme.colors.primary : theme.colors.border,
-    backgroundColor: theme.colors.surface,
-    ...theme.shadows.sm,
-  };
-}
-
 // Cierra el círculo de la cancelación: el cliente ya respeta estas
 // políticas (mis-citas.tsx + el trigger de 0010), esta pantalla es donde
 // el dueño las configura en vez de insertar filas por SQL.
 export default function Politicas() {
+  const theme = useTheme();
   const { business, refreshBusiness } = useBusiness();
+
+  // chipStyle/chipTextStyle/optionRowStyle: antes funciones a nivel de
+  // módulo, ahora anidadas aquí dentro (solo las usa esta pantalla) —
+  // cierran sobre el `theme` local de arriba, useTheme() solo puede
+  // llamarse dentro de un componente.
+  function chipStyle(selected: boolean) {
+    return {
+      paddingVertical: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.md,
+      borderRadius: theme.radii.md,
+      borderWidth: 1,
+      borderColor: selected ? theme.colors.primary : theme.colors.border,
+      backgroundColor: selected ? theme.colors.primary : 'transparent',
+    };
+  }
+
+  function chipTextStyle(selected: boolean) {
+    return {
+      fontSize: theme.fontSizes.sm,
+      color: selected ? theme.colors.textOnPrimary : theme.colors.textPrimary,
+      fontWeight: selected ? theme.fontWeights.semibold : theme.fontWeights.regular,
+    };
+  }
+
+  function optionRowStyle(selected: boolean) {
+    return {
+      padding: theme.spacing.md,
+      borderRadius: theme.radii.md,
+      borderWidth: selected ? 2 : 1,
+      borderColor: selected ? theme.colors.primary : theme.colors.border,
+      backgroundColor: theme.colors.surface,
+      ...theme.shadows.sm,
+    };
+  }
 
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);

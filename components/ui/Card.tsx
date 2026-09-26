@@ -1,5 +1,5 @@
 import { View, type ViewProps } from 'react-native';
-import { theme } from '@/theme';
+import { useTheme } from '@/context/ThemeContext';
 
 export interface CardProps extends ViewProps {}
 
@@ -7,6 +7,7 @@ export interface CardProps extends ViewProps {}
 // suaves"), sombra sutil. El `style` que se pase se combina (no
 // reemplaza) con el de la tarjeta.
 export function Card({ style, children, ...rest }: CardProps) {
+  const theme = useTheme();
   return (
     <View
       style={[

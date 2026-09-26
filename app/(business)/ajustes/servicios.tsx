@@ -3,7 +3,7 @@ import { ActivityIndicator, FlatList, Pressable, ScrollView, Text, View } from '
 import { useFocusEffect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useBusiness } from '@/context/BusinessContext';
-import { theme } from '@/theme';
+import { useTheme } from '@/context/ThemeContext';
 import { Badge, Button, Card, Input, Screen } from '@/components/ui';
 import type { Service } from '@/types/database';
 
@@ -14,6 +14,7 @@ type Editing = Service | 'new' | null;
 // active=true (ver app/(client)/index.tsx), así que desactivar aquí basta
 // para que deje de ofrecerse en nuevas reservas sin tocar el histórico.
 export default function Servicios() {
+  const theme = useTheme();
   const { business } = useBusiness();
 
   const [services, setServices] = useState<Service[] | null>(null);

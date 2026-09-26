@@ -14,7 +14,7 @@ import {
   todayDateStrInZone,
   zonedTimeToUtc,
 } from '@/lib/timezone';
-import { theme } from '@/theme';
+import { useTheme } from '@/context/ThemeContext';
 import { Screen } from '@/components/ui';
 
 const inputStyle = { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12 };
@@ -104,6 +104,7 @@ function findOverlappingAppointments(
 // solape dé paso libre a cualquier escritura hecha por un miembro del
 // negocio, sea cual sea la hora.
 export default function Cita() {
+  const theme = useTheme();
   const router = useRouter();
   const { business } = useBusiness();
   const {

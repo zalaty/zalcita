@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
-import { theme } from '@/theme';
+import { useTheme } from '@/context/ThemeContext';
 import { Badge, Card, Screen } from '@/components/ui';
 import { computeAvailableSlots, type Slot, type TimeRange } from '@/lib/availability';
 import { fetchDaySchedule, type DaySchedule } from '@/lib/schedule';
@@ -31,6 +31,7 @@ interface ServiceInfo {
 }
 
 export default function Disponibilidad() {
+  const theme = useTheme();
   const router = useRouter();
   const { slug, service_id: serviceId } = useLocalSearchParams<{
     slug?: string;

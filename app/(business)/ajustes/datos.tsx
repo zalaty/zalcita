@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { useBusiness } from '@/context/BusinessContext';
-import { theme } from '@/theme';
+import { useTheme } from '@/context/ThemeContext';
 import { Button, Card, Input, Screen } from '@/components/ui';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -12,6 +12,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // pública ya compartida (cambiarla rompería enlaces/QR existentes) y
 // timezone queda fijo en Europe/Madrid para el MVP.
 export default function DatosNegocio() {
+  const theme = useTheme();
   const { business, refreshBusiness } = useBusiness();
 
   const [name, setName] = useState('');

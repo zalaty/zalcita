@@ -1,27 +1,30 @@
 import { Pressable, ScrollView, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useIsPlatformAdmin } from '@/hooks/useIsPlatformAdmin';
-import { theme } from '@/theme';
+import { useTheme } from '@/context/ThemeContext';
 import { Screen } from '@/components/ui';
-
-const menuRowStyle = {
-  flexDirection: 'row' as const,
-  alignItems: 'center' as const,
-  justifyContent: 'space-between' as const,
-  borderWidth: 1,
-  borderColor: theme.colors.border,
-  borderRadius: theme.radii.md,
-  backgroundColor: theme.colors.surface,
-  padding: theme.spacing.md,
-  ...theme.shadows.sm,
-};
 
 // TODO: añadir más secciones aquí conforme se construyan: Stripe — cada
 // una como su propia pantalla dentro de esta carpeta, enlazada desde
 // aquí, mismo patrón que "servicios"/"horarios".
 export default function AjustesMenu() {
+  const theme = useTheme();
   const router = useRouter();
   const { isAdmin } = useIsPlatformAdmin();
+
+  // useTheme() solo puede llamarse dentro de un componente, así que esta
+  // fila-chip (antes constante a nivel de módulo) pasa a calcularse aquí.
+  const menuRowStyle = {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radii.md,
+    backgroundColor: theme.colors.surface,
+    padding: theme.spacing.md,
+    ...theme.shadows.sm,
+  };
 
   return (
     <Screen>

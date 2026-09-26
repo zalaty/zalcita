@@ -3,7 +3,8 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-nati
 import { useFocusEffect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useBusiness } from '@/context/BusinessContext';
-import { theme } from '@/theme';
+import type { Theme } from '@/theme';
+import { useTheme } from '@/context/ThemeContext';
 import { Button, Card, Input, Screen } from '@/components/ui';
 import { addMonthsToMonthStr, monthGridCells, monthLabel, todayDateStrInZone } from '@/lib/timezone';
 import type { ScheduleException, WorkingHours } from '@/types/database';
@@ -23,23 +24,10 @@ const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 const MINUTES = ['00', '15', '30', '45'];
 const WEEKDAY_HEADER = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 
-// Fila-chip compartida por tramos de horario y excepciones: borde + sombra
-// sutil para que se distingan de la Card blanca que las contiene (misma
-// lección que los huecos de disponibilidad.tsx — sombra sola no basta
-// cuando fila y contenedor comparten el mismo blanco).
-const chipRowStyle = {
-  flexDirection: 'row' as const,
-  alignItems: 'center' as const,
-  justifyContent: 'space-between' as const,
-  padding: theme.spacing.sm,
-  borderRadius: theme.radii.md,
-  borderWidth: 1,
-  borderColor: theme.colors.border,
-  backgroundColor: theme.colors.surface,
-  ...theme.shadows.sm,
-};
-
-function chipStyle(selected: boolean) {
+// chipStyle/chipTextStyle: reciben `theme` por parámetro (no lo importan) —
+// las usan tanto <Horarios> como <TimeSelector>, dos componentes distintos
+// de este archivo, cada uno con su propio useTheme() en render.
+function chipStyle(selected: boolean, theme: Theme) {
   return {
     paddingVertical: theme.spacing.xs,
     paddingHorizontal: theme.spacing.sm,
@@ -50,7 +38,7 @@ function chipStyle(selected: boolean) {
   };
 }
 
-function chipTextStyle(selected: boolean) {
+function chipTextStyle(selected: boolean, theme: Theme) {
   return {
     fontSize: theme.fontSizes.sm,
     color: selected ? theme.colors.textOnPrimary : theme.colors.textPrimary,
@@ -80,6 +68,7 @@ function isValidDateStr(value: string): boolean {
 // ecosistema, @react-native-community/datetimepicker, no tiene ninguna
 // implementación para web).
 function TimeSelector({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const theme = useTheme();
   const [h, m] = value.includes(':') ? value.split(':') : ['', ''];
 
   return (
@@ -88,16 +77,16 @@ function TimeSelector({ label, value, onChange }: { label: string; value: string
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <View style={{ flexDirection: 'row', gap: theme.spacing.xs }}>
           {HOURS.map((hh) => (
-            <Pressable key={hh} onPress={() => onChange(`${hh}:${m || '00'}`)} style={chipStyle(h === hh)}>
-              <Text style={chipTextStyle(h === hh)}>{hh}</Text>
+            <Pressable key={hh} onPress={() => onChange(`${hh}:${m || '00'}`)} style={chipStyle(h === hh, theme)}>
+              <Text style={chipTextStyle(h === hh, theme)}>{hh}</Text>
             </Pressable>
           ))}
         </View>
       </ScrollView>
       <View style={{ flexDirection: 'row', gap: theme.spacing.xs }}>
         {MINUTES.map((mm) => (
-          <Pressable key={mm} onPress={() => onChange(`${h || '00'}:${mm}`)} style={chipStyle(m === mm)}>
-            <Text style={chipTextStyle(m === mm)}>{mm}</Text>
+          <Pressable key={mm} onPress={() => onChange(`${h || '00'}:${mm}`)} style={chipStyle(m === mm, theme)}>
+            <Text style={chipTextStyle(m === mm, theme)}>{mm}</Text>
           </Pressable>
         ))}
       </View>
@@ -117,6 +106,7 @@ function MonthCalendar({
   minDate: string;
   onSelect: (dateStr: string) => void;
 }) {
+  const theme = useTheme();
   const [viewMonth, setViewMonth] = useState(() => (selectedDate || minDate).slice(0, 7));
   const cells = monthGridCells(viewMonth);
 
@@ -190,7 +180,25 @@ function MonthCalendar({
 type EditingSlot = { dayOfWeek: number; original: WorkingHours | null } | null;
 
 export default function Horarios() {
+  const theme = useTheme();
   const { business } = useBusiness();
+
+  // Fila-chip compartida por tramos de horario y excepciones: borde + sombra
+  // sutil para que se distingan de la Card blanca que las contiene (misma
+  // lección que los huecos de disponibilidad.tsx — sombra sola no basta
+  // cuando fila y contenedor comparten el mismo blanco). Antes constante a
+  // nivel de módulo; useTheme() solo puede llamarse dentro del componente.
+  const chipRowStyle = {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
+    padding: theme.spacing.sm,
+    borderRadius: theme.radii.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+    ...theme.shadows.sm,
+  };
 
   // Horario semanal
   const [hours, setHours] = useState<WorkingHours[] | null>(null);

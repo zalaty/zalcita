@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
 import { formatLongDateInZone } from '@/lib/timezone';
-import { theme } from '@/theme';
+import { useTheme } from '@/context/ThemeContext';
 import { Badge, Button, Screen } from '@/components/ui';
 
 const TAB_ICON_SIZE = 24;
@@ -19,16 +19,6 @@ interface BusinessRow {
   active: boolean;
   timezone: string;
 }
-
-const cardStyle = {
-  padding: theme.spacing.md,
-  borderRadius: theme.radii.md,
-  borderWidth: 1,
-  borderColor: theme.colors.border,
-  backgroundColor: theme.colors.surface,
-  gap: theme.spacing.xs,
-  ...theme.shadows.sm,
-};
 
 // /admin vive FUERA de (business) a propósito (ver app/admin/_layout.tsx):
 // su guarda es solo session + is_platform_admin(), independiente de tener
@@ -53,7 +43,19 @@ function contactLabel(b: BusinessRow): string {
 // hace el propio admin autenticado, así que el trigger (0004/0006) lo deja
 // pasar sin tocar nada más — is_platform_admin() ya es cierto para él.
 export default function AdminNegocios() {
+  const theme = useTheme();
   const router = useRouter();
+  // Antes constante a nivel de módulo — useTheme() solo puede llamarse
+  // dentro de un componente, así que pasa a calcularse aquí en cada render.
+  const cardStyle = {
+    padding: theme.spacing.md,
+    borderRadius: theme.radii.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+    gap: theme.spacing.xs,
+    ...theme.shadows.sm,
+  };
   const insets = useSafeAreaInsets();
 
   const [businesses, setBusinesses] = useState<BusinessRow[] | null>(null);

@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, Switch, Text, View } from 're
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
-import { theme } from '@/theme';
+import { useTheme } from '@/context/ThemeContext';
 import { Button, Card, Input, Screen } from '@/components/ui';
 import { formatLongDateInZone, formatTimeInZone } from '@/lib/timezone';
 import type { AppointmentStatus } from '@/types/database';
@@ -48,6 +48,7 @@ async function isSessionError(err: { code?: string | null; message?: string } | 
 }
 
 export default function Confirmacion() {
+  const theme = useTheme();
   const router = useRouter();
   const { session, loading: authLoading } = useAuth();
   const { slug, service_id: serviceId, start_time: startTimeParam } = useLocalSearchParams<{

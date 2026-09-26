@@ -24,8 +24,9 @@ import {
   groupAppointmentsByDate,
   type AppointmentDetails,
 } from '@/lib/appointments';
-import { APPOINTMENT_STATUS_PRESENTATION } from '@/lib/appointmentStatusPresentation';
-import { theme } from '@/theme';
+import { appointmentStatusPresentation, type AppointmentStatusPresentation } from '@/lib/appointmentStatusPresentation';
+import { useTheme } from '@/context/ThemeContext';
+import { appointmentStatusColors, appointmentStatusTones, type Theme } from '@/theme';
 import { Badge, BADGE_TONE_STYLES, Screen } from '@/components/ui';
 import {
   dayScheduleFromRange,
@@ -37,14 +38,26 @@ import {
 import { computeAvailableSlots, type Slot } from '@/lib/availability';
 import type { Appointment, AppointmentStatus, Business } from '@/types/database';
 
-const buttonStyle = { backgroundColor: theme.colors.primary, padding: 14, borderRadius: 8 };
-const buttonTextStyle = { color: theme.colors.textOnPrimary, textAlign: 'center' as const, fontWeight: '600' as const };
+// newAppointmentButtonStyle/newAppointmentButtonTextStyle/pageColumnStyle:
+// reciben `theme` por parámetro
+// (no lo importan) — las usan varios componentes de este archivo
+// (CalendarioSemana, CalendarioDia, CalendarioMes, Calendario), cada uno
+// con su propio useTheme() en render. useTheme() solo puede llamarse
+// dentro de un componente, nunca en una constante de módulo.
+function newAppointmentButtonStyle(theme: Theme) {
+  return { backgroundColor: theme.colors.primary, padding: 14, borderRadius: 8 };
+}
+function newAppointmentButtonTextStyle(theme: Theme) {
+  return { color: theme.colors.textOnPrimary, textAlign: 'center' as const, fontWeight: '600' as const };
+}
 
 // Columna de cabecera y de la vista Día: mismo ancho, mismo borde izquierdo
 // (padding lateral lg dentro), para que título, selector y tarjetas queden a
 // plomo. La cabecera mantiene este ancho en las 3 vistas (no salta al
 // cambiar); solo el CUERPO de Semana/Mes se abre a ancho completo.
-const COLUMN_STYLE = { width: '100%', maxWidth: theme.layout.panelMaxWidth, alignSelf: 'center' } as const;
+function pageColumnStyle(theme: Theme) {
+  return { width: '100%', maxWidth: theme.layout.panelMaxWidth, alignSelf: 'center' } as const;
+}
 
 const VIEW_STORAGE_KEY = '@zalcita/calendario_view';
 type CalendarView = 'day' | 'week' | 'month';
@@ -68,23 +81,11 @@ const DEFAULT_GRID_BOUNDS = { startMin: 8 * 60, endMin: 20 * 60 };
 // dueño que también debe poder mirar hacia atrás (un lunes ya pasado de
 // esta semana) sin que sus huecos desaparezcan solo por ser del pasado.
 const EARLY_EPOCH = new Date(0);
-// Mismo tono que loadClosed (vista Mes): "cerrado" = tono de fondo de
-// página, en ambas vistas del calendario. Antes '#f2f2f2', valor propio sin
-// pasar por el theme; background es visualmente indistinguible (diferencia
-// de ~6/255 por canal, imperceptible en un fondo plano).
-const COLOR_CLOSED_BG = theme.colors.background;
-// Antes '#e5e5e5' suelto; disabledBg coincide casi exacto (~2/255 por canal).
-const COLOR_BLOCKED_BG = theme.colors.disabledBg;
-// Huecos libres: NUNCA verde — el estado "confirmed" ya usa verde oscuro
-// (theme success, ver appointmentBlockAppearance), y un verde claro al lado se confundía
-// con eso (poco contraste, además, para daltonismo). Blanco + borde
-// punteado + etiqueta "Libre": la distinción libre/ocupado no depende del
-// matiz de color en ningún punto.
-const COLOR_FREE_BG = theme.colors.surface; // antes '#ffffff' suelto — mismo valor exacto
 // SIN tokenizar a propósito (paso 1, modo oscuro): son un gris-azulado
 // FRÍO, deliberadamente distinto de los grises cálidos del resto del theme
 // (border/borderStrong/textMuted) — no hay token equivalente sin cambiar
-// el aspecto. Ver reporte de la sesión que los dejó pendientes.
+// el aspecto. Ver reporte de la sesión que los dejó pendientes. No dependen
+// de theme, así que se quedan a nivel de módulo sin tocar.
 const COLOR_FREE_BORDER = '#64748b';
 const COLOR_FREE_TEXT = '#334155';
 // Bajo este alto en píxeles (PX_PER_MINUTE=1 -> px = minutos) la etiqueta
@@ -181,6 +182,7 @@ function assignLanes(dayAppointments: AppointmentDetails[]): { laned: LanedAppoi
 }
 
 function ViewSelector({ value, onChange }: { value: CalendarView; onChange: (v: CalendarView) => void }) {
+  const theme = useTheme();
   const options: { value: CalendarView; label: string }[] = [
     { value: 'day', label: 'Día' },
     { value: 'week', label: 'Semana' },
@@ -248,8 +250,12 @@ interface BlockAppearance {
 // Contrastes AA (texto/fondo): confirmed blanco/success 7.13, no_show
 // blanco/danger 6.47, pending warning/warningSurface 4.75, cancelled
 // textSecondary/disabledBg 6.08, completed textPrimary/tinte 9.78.
-function appointmentBlockAppearance(status: AppointmentDetails['status']): BlockAppearance {
-  const { tone, color } = APPOINTMENT_STATUS_PRESENTATION[status];
+function appointmentBlockAppearance(
+  status: AppointmentDetails['status'],
+  theme: Theme,
+  presentation: AppointmentStatusPresentation
+): BlockAppearance {
+  const { tone, color } = presentation;
   const separator = theme.colors.surface;
 
   switch (status) {
@@ -322,6 +328,15 @@ function WeekDayColumn({
   onOpenDay: (dateStr: string) => void;
   onNewAppointment: (dateStr: string, time: string) => void;
 }) {
+  const theme = useTheme();
+  // Antes constantes de módulo (theme.colors.background/disabledBg/surface) —
+  // solo las usa esta columna, así que pasan a calcularse aquí.
+  const colorClosedBg = theme.colors.background; // "cerrado" = mismo tono que loadClosed (vista Mes)
+  const colorBlockedBg = theme.colors.disabledBg;
+  const colorFreeBg = theme.colors.surface;
+  // appointmentStatusColors/appointmentStatusTones (theme/colors.ts) son hoy
+  // en sí mismos estáticos — mismo patrón que mis-citas.tsx/cliente/[id].tsx.
+  const statusPresentation = appointmentStatusPresentation(appointmentStatusTones, appointmentStatusColors);
   const tz = business.timezone;
   const today = todayDateStrInZone(tz);
   const daySchedule = dayScheduleFromRange(rangeSchedule, dateStr, tz);
@@ -371,7 +386,7 @@ function WeekDayColumn({
         style={{
           height: totalHeight,
           position: 'relative',
-          backgroundColor: COLOR_CLOSED_BG,
+          backgroundColor: colorClosedBg,
           borderLeftWidth: 1,
           borderColor: theme.colors.border,
         }}
@@ -405,7 +420,7 @@ function WeekDayColumn({
                   height,
                   left: 0,
                   right: 0,
-                  backgroundColor: COLOR_FREE_BG,
+                  backgroundColor: colorFreeBg,
                   borderWidth: 1,
                   borderStyle: 'dashed',
                   borderColor: COLOR_FREE_BORDER,
@@ -429,7 +444,7 @@ function WeekDayColumn({
                 height,
                 left: 0,
                 right: 0,
-                backgroundColor: COLOR_BLOCKED_BG,
+                backgroundColor: colorBlockedBg,
                 borderTopWidth: 1,
                 borderBottomWidth: 1,
                 borderColor: theme.colors.border,
@@ -445,8 +460,8 @@ function WeekDayColumn({
           if (endMin <= startMin) return null;
           const widthPct = 100 / totalLanes;
           const blockHeight = (endMin - startMin) * PX_PER_MINUTE;
-          const presentation = APPOINTMENT_STATUS_PRESENTATION[appointment.status];
-          const look = appointmentBlockAppearance(appointment.status);
+          const presentation = statusPresentation[appointment.status];
+          const look = appointmentBlockAppearance(appointment.status, theme, presentation);
           const startLabel = formatTimeInZone(new Date(appointment.start_time), tz);
           const compact = blockHeight < COMPACT_BLOCK_MAX_HEIGHT;
           // Con borde de 1px (los estados con glifo), el alto útil es
@@ -530,6 +545,8 @@ function CalendarioSemana({
   onOpenDay: (dateStr: string) => void;
   onNewAppointment: (dateStr: string, time?: string) => void;
 }) {
+  const theme = useTheme();
+  const colStyle = pageColumnStyle(theme);
   const { width } = useWindowDimensions();
   const isNarrow = width < NARROW_BREAKPOINT;
 
@@ -586,7 +603,7 @@ function CalendarioSemana({
   return (
     <View style={{ flex: 1 }}>
       <View style={{ borderBottomWidth: 1, borderColor: theme.colors.border }}>
-      <View style={COLUMN_STYLE}>
+      <View style={colStyle}>
       <View style={{ flexDirection: 'row', alignItems: 'center', padding: theme.spacing.lg }}>
         <Pressable onPress={() => setWeekStart((w) => addDaysToDateStr(w, -7))} style={{ padding: 8 }}>
           <Text style={{ fontSize: 18, color: theme.colors.textPrimary }}>‹</Text>
@@ -608,10 +625,10 @@ function CalendarioSemana({
       </View>
       </View>
 
-      <View style={COLUMN_STYLE}>
+      <View style={colStyle}>
         <View style={{ paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.lg }}>
-          <Pressable onPress={() => onNewAppointment(weekStart)} style={buttonStyle}>
-            <Text style={buttonTextStyle}>+ Nueva cita</Text>
+          <Pressable onPress={() => onNewAppointment(weekStart)} style={newAppointmentButtonStyle(theme)}>
+            <Text style={newAppointmentButtonTextStyle(theme)}>+ Nueva cita</Text>
           </Pressable>
         </View>
       </View>
@@ -708,21 +725,29 @@ type DayLoadStatus = 'closed' | 'free' | 'partial' | 'full';
 // Carga del día = LUMINOSIDAD, no matiz: escala monocroma teal (tokens
 // load* del theme, más oscuro = más lleno). `closed` queda fuera de la
 // escala (sin relleno, borde discontinuo). NUNCA la única señal: en la celda
-// siempre hay el nº de citas o "–" (ver más abajo). COLOR_CLOSED_BG NO se usa
-// aquí: es el gris de las columnas cerradas de Semana y se queda como está.
-const DAY_STATUS_BG: Record<DayLoadStatus, string> = {
-  closed: theme.colors.loadClosed,
-  free: theme.colors.loadFree,
-  partial: theme.colors.loadPartial,
-  full: theme.colors.loadFull,
-};
+// siempre hay el nº de citas o "–" (ver más abajo). El gris de "cerrado" de
+// la vista Semana es independiente (colorClosedBg, dentro de WeekDayColumn)
+// y se queda como está.
+//
+// DAY_STATUS_BG/DAY_STATUS_TEXT reciben `theme` por parámetro — solo las usa
+// CalendarioMes, que las calcula en su propio render con su useTheme().
+function dayStatusBg(theme: Theme): Record<DayLoadStatus, string> {
+  return {
+    closed: theme.colors.loadClosed,
+    free: theme.colors.loadFree,
+    partial: theme.colors.loadPartial,
+    full: theme.colors.loadFull,
+  };
+}
 // Color del contenido de la celda por paso (AA verificado en theme/colors.ts).
-const DAY_STATUS_TEXT: Record<DayLoadStatus, string> = {
-  closed: theme.colors.textSecondary,
-  free: theme.colors.textPrimary,
-  partial: theme.colors.textPrimary,
-  full: theme.colors.textOnLoadFull,
-};
+function dayStatusText(theme: Theme): Record<DayLoadStatus, string> {
+  return {
+    closed: theme.colors.textSecondary,
+    free: theme.colors.textPrimary,
+    partial: theme.colors.textPrimary,
+    full: theme.colors.textOnLoadFull,
+  };
+}
 // Orden claro -> oscuro de la escala (sin "closed", que va aparte).
 const LOAD_SCALE: DayLoadStatus[] = ['free', 'partial', 'full'];
 const LEGEND_STEP_WIDTH = 72;
@@ -810,6 +835,13 @@ function CalendarioMes({
   setMonthStr: Dispatch<SetStateAction<string>>;
   onOpenDay: (dateStr: string) => void;
 }) {
+  const theme = useTheme();
+  const colStyle = pageColumnStyle(theme);
+  // Antes constantes de módulo — solo las usa esta vista, así que se
+  // calculan aquí con el theme local (misma referencia usada más abajo,
+  // sin tocar el resto del cuerpo de la función).
+  const DAY_STATUS_BG = dayStatusBg(theme);
+  const DAY_STATUS_TEXT = dayStatusText(theme);
   // Mismo umbral que CalendarioSemana (NARROW_BREAKPOINT): en escritorio se
   // listan citas dentro de la celda, en móvil no cabe y se cae al
   // comportamiento actual (solo número + color).
@@ -870,7 +902,7 @@ function CalendarioMes({
   return (
     <View style={{ flex: 1 }}>
       <View style={{ borderBottomWidth: 1, borderColor: theme.colors.border }}>
-      <View style={COLUMN_STYLE}>
+      <View style={colStyle}>
       <View style={{ flexDirection: 'row', alignItems: 'center', padding: theme.spacing.lg }}>
         <Pressable onPress={() => setMonthStr((m) => addMonthsToMonthStr(m, -1))} style={{ padding: 8 }}>
           <Text style={{ fontSize: 18, color: theme.colors.textPrimary }}>‹</Text>
@@ -1145,6 +1177,10 @@ function CalendarioDia({
   setSelectedDate: Dispatch<SetStateAction<string>>;
   router: ReturnType<typeof useRouter>;
 }) {
+  const theme = useTheme();
+  // appointmentStatusColors/appointmentStatusTones (theme/colors.ts) son hoy
+  // en sí mismos estáticos — mismo patrón que mis-citas.tsx/cliente/[id].tsx.
+  const statusPresentation = appointmentStatusPresentation(appointmentStatusTones, appointmentStatusColors);
   const [appointments, setAppointments] = useState<AppointmentDetails[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
@@ -1233,9 +1269,9 @@ function CalendarioDia({
       <View style={{ paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.lg }}>
         <Pressable
           onPress={() => router.push({ pathname: '/(business)/cita', params: { date: selectedDate } })}
-          style={buttonStyle}
+          style={newAppointmentButtonStyle(theme)}
         >
-          <Text style={buttonTextStyle}>+ Nueva cita</Text>
+          <Text style={newAppointmentButtonTextStyle(theme)}>+ Nueva cita</Text>
         </Pressable>
       </View>
 
@@ -1262,8 +1298,8 @@ function CalendarioDia({
                       {formatTimeInZone(new Date(item.end_time), business.timezone)}
                     </Text>
                     <Badge
-                      label={APPOINTMENT_STATUS_PRESENTATION[item.status].label}
-                      tone={APPOINTMENT_STATUS_PRESENTATION[item.status].tone}
+                      label={statusPresentation[item.status].label}
+                      tone={statusPresentation[item.status].tone}
                     />
                   </View>
                   <Text style={{ fontSize: 14, color: theme.colors.textPrimary }}>
@@ -1370,6 +1406,8 @@ function CalendarioDia({
 }
 
 export default function Calendario() {
+  const theme = useTheme();
+  const colStyle = pageColumnStyle(theme);
   const router = useRouter();
   const { business } = useBusiness();
 
@@ -1436,7 +1474,7 @@ export default function Calendario() {
 
   return (
     <Screen>
-      <View style={COLUMN_STYLE}>
+      <View style={colStyle}>
         <View style={{ paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.lg, paddingBottom: theme.spacing.sm }}>
           <Text accessibilityRole="header" style={{ ...theme.textStyles.heading1, color: theme.colors.textPrimary }}>
             Calendario
@@ -1448,7 +1486,7 @@ export default function Calendario() {
         // Vista Día: es una lista, no una rejilla — se acota a la misma
         // columna que la cabecera (panelMaxWidth). Semana y Mes se quedan a
         // ancho completo (son rejillas densas), sin este límite.
-        <View style={{ flex: 1, ...COLUMN_STYLE }}>
+        <View style={{ flex: 1, ...colStyle }}>
           <CalendarioDia business={business} selectedDate={selectedDate} setSelectedDate={setSelectedDate} router={router} />
         </View>
       )}

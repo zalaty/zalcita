@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
 import type { ColorValue } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '@/theme';
+import { useTheme } from '@/context/ThemeContext';
 
 // Mismo patrón que app/(business)/_layout.tsx: contorno inactiva, relleno
 // activa, 24px, colores del theme — sin repetir aquí un hex suelto.
@@ -18,6 +18,7 @@ function tabIcon(nameOutline: keyof typeof Ionicons.glyphMap, nameFilled: keyof 
 // redirigir a (auth)/login (se implementa dentro de cada pantalla, cuando
 // se construya la lógica real de reserva).
 export default function ClientLayout() {
+  const theme = useTheme();
   return (
     <Tabs
       screenOptions={{

@@ -1,6 +1,6 @@
 import { View, type ViewProps } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { theme } from '@/theme';
+import { useTheme } from '@/context/ThemeContext';
 
 export interface ScreenProps extends ViewProps {}
 
@@ -12,6 +12,7 @@ export interface ScreenProps extends ViewProps {}
 // mostrando su cabecera nativa (hoy: Calendario y Cita) — ahí ya la da el
 // header, y sumar esto la duplicaría.
 export function Screen({ style, children, ...rest }: ScreenProps) {
+  const theme = useTheme();
   const insets = useSafeAreaInsets();
   return (
     <View style={[{ flex: 1, backgroundColor: theme.colors.background, paddingTop: insets.top }, style]} {...rest}>

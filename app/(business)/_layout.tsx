@@ -3,7 +3,7 @@ import { Redirect, Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext';
 import { BusinessProvider, useBusiness } from '@/context/BusinessContext';
-import { theme } from '@/theme';
+import { useTheme } from '@/context/ThemeContext';
 
 const TAB_ICON_SIZE = 24;
 
@@ -37,6 +37,7 @@ export default function BusinessLayout() {
 // pintar nada: así el banner de pendiente (o su ausencia) aparece ya con el
 // dato correcto, sin un parpadeo previo mostrando el panel "como aprobado".
 function BusinessPanel() {
+  const theme = useTheme();
   const { business, loading } = useBusiness();
 
   // Solo bloquea con el spinner a pantalla completa en la carga INICIAL

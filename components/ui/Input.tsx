@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Text, TextInput, View, type TextInputProps, type TextStyle } from 'react-native';
-import { theme } from '@/theme';
+import { useTheme } from '@/context/ThemeContext';
 
 export interface InputProps extends TextInputProps {
   label?: string;
@@ -22,6 +22,7 @@ const WEB_NO_NATIVE_OUTLINE = { outlineStyle: 'none', outlineWidth: 0 } as unkno
 // para sustituir al `inputStyle` suelto que hoy se repite (copiado) en
 // varias pantallas.
 export function Input({ label, error, style, onFocus, onBlur, ...rest }: InputProps) {
+  const theme = useTheme();
   const [focused, setFocused] = useState(false);
 
   const borderColor = error ? theme.colors.danger : focused ? theme.colors.primary : theme.colors.borderStrong;
