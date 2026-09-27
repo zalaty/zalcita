@@ -62,16 +62,16 @@ function BusinessPanel() {
       {business && !business.active && (
         <View
           style={{
-            backgroundColor: '#fff3cd',
-            padding: 12,
+            backgroundColor: theme.colors.warningSurface,
+            padding: theme.spacing.md,
             borderBottomWidth: 1,
-            borderColor: '#ffe69c',
+            borderColor: theme.colors.warning,
           }}
         >
-          <Text style={{ fontWeight: '600', color: '#664d03' }}>
+          <Text style={{ ...theme.textStyles.bodyMedium, color: theme.colors.warning }}>
             Tu negocio está pendiente de aprobación
           </Text>
-          <Text style={{ fontSize: 13, color: '#664d03' }}>
+          <Text style={{ ...theme.textStyles.small, color: theme.colors.warning }}>
             Puedes ir configurando tus servicios y horarios; aún no puedes recibir reservas.
           </Text>
         </View>
@@ -86,6 +86,7 @@ function BusinessPanel() {
           headerShown: false,
           tabBarActiveTintColor: theme.colors.primary,
           tabBarInactiveTintColor: theme.colors.textSecondary,
+          tabBarStyle: { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border },
         }}
       >
         <Tabs.Screen

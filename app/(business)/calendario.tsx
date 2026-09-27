@@ -81,13 +81,6 @@ const DEFAULT_GRID_BOUNDS = { startMin: 8 * 60, endMin: 20 * 60 };
 // dueño que también debe poder mirar hacia atrás (un lunes ya pasado de
 // esta semana) sin que sus huecos desaparezcan solo por ser del pasado.
 const EARLY_EPOCH = new Date(0);
-// SIN tokenizar a propósito (paso 1, modo oscuro): son un gris-azulado
-// FRÍO, deliberadamente distinto de los grises cálidos del resto del theme
-// (border/borderStrong/textMuted) — no hay token equivalente sin cambiar
-// el aspecto. Ver reporte de la sesión que los dejó pendientes. No dependen
-// de theme, así que se quedan a nivel de módulo sin tocar.
-const COLOR_FREE_BORDER = '#64748b';
-const COLOR_FREE_TEXT = '#334155';
 // Bajo este alto en píxeles (PX_PER_MINUTE=1 -> px = minutos) la etiqueta
 // "Libre" no cabe legible; el hueco sigue siendo distinguible por el borde
 // punteado + el blanco solo.
@@ -423,13 +416,13 @@ function WeekDayColumn({
                   backgroundColor: colorFreeBg,
                   borderWidth: 1,
                   borderStyle: 'dashed',
-                  borderColor: COLOR_FREE_BORDER,
+                  borderColor: theme.colors.freeSlotBorder,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
                 {height >= FREE_LABEL_MIN_HEIGHT && (
-                  <Text style={{ fontSize: 9, fontWeight: '600', color: COLOR_FREE_TEXT }}>Libre</Text>
+                  <Text style={{ fontSize: 9, fontWeight: '600', color: theme.colors.freeSlotText }}>Libre</Text>
                 )}
               </Pressable>
             );

@@ -153,6 +153,14 @@ export interface ColorTokens {
   loadPartial: string;
   loadFull: string;
   textOnLoadFull: string;
+
+  // Hueco "Libre" de la vista Semana (WeekDayColumn, calendario.tsx):
+  // gris-azulado FRÍO a propósito, deliberadamente distinto de los grises
+  // cálidos del resto del sistema — así "libre" no se confunde con
+  // "confirmada" (verde/teal) bajo daltonismo. Sin equivalente cálido, por
+  // eso son tokens propios en vez de reutilizar border/borderStrong/textMuted.
+  freeSlotBorder: string;
+  freeSlotText: string;
 }
 
 // Objeto intermedio SIN exportar: permite que los alias de abajo
@@ -206,9 +214,203 @@ const base: ColorTokens = {
   loadPartial: '#14b8a6', // textPrimary 7.03:1
   loadFull: '#115e59', // textOnLoadFull 7.58:1
   textOnLoadFull: '#ffffff',
+
+  // Mismos hex que ya usaba calendario.tsx como constantes de módulo
+  // (COLOR_FREE_BORDER/COLOR_FREE_TEXT) antes de esta tanda — al convertirlos
+  // en tokens, el valor CLARO no cambia, cero diferencia visual en claro.
+  freeSlotBorder: '#64748b',
+  freeSlotText: '#334155',
 };
 
 export const lightColors: ColorTokens = base;
+
+// ============================================================
+// MODO OSCURO — PASO 3
+// ============================================================
+// TANDA 1 (neutros): background/surface/border/borderStrong/textPrimary/
+// textSecondary/textMuted/disabledBg/disabledText — diseñados y aprobados.
+// Gris CÁLIDO muy oscuro (misma familia que los neutros de `base`, NO un
+// gris frío ni negro puro), con `surface` más CLARA que `background` (en
+// oscuro, lo que "flota" —Cards, superficies elevadas— debe leerse por
+// encima del fondo, al revés que en claro donde la jerarquía la daba sobre
+// todo la sombra).
+//
+// TANDA 2 (acentos): primary + success/warning/danger/info + sus xSurface —
+// diseñados y verificados.
+//
+// TANDA 3 (casos especiales): escala de CARGA de la vista Mes (loadFree/
+// loadPartial/loadFull/loadPast) y el hueco "Libre" de Semana
+// (freeSlotBorder/freeSlotText) — diseñados y verificados. La escala INVIERTE
+// el sentido respecto a claro (ver darkLoadScale más abajo): en claro "más
+// oscuro = más lleno", en oscuro "más brillante = más lleno", porque un
+// "lleno" oscuro se fundiría con el fondo. Con esto, darkColors ya no tiene
+// ninguna clave provisional.
+//
+// Contraste AA (fórmula WCAG 2.1, igual método que la tabla de `base` de
+// arriba):
+//   Token           Fondo               Ratio    Resultado
+//   --------------  ------------------  -------  ---------
+//   textPrimary     background          15.76:1  PASA
+//   textPrimary     surface             13.36:1  PASA
+//   textSecondary   background           9.40:1  PASA
+//   textSecondary   surface              7.96:1  PASA
+//   textMuted       background           5.88:1  PASA
+//   textMuted       surface              4.99:1  PASA (el más ajustado de los neutros)
+//   borderStrong    background           3.82:1  PASA (>=3:1, no-texto: borde de Input)
+//   borderStrong    surface              3.24:1  PASA (>=3:1, no-texto: borde de Input)
+//   surface         background           1.18:1  (jerarquía visual, no es un par de AA)
+//   primary (link)  background           7.37:1  PASA
+//   primary (link)  surface              6.24:1  PASA
+//   danger (texto)  background           6.63:1  PASA
+//   danger (texto)  surface              5.62:1  PASA
+//   success (texto) background          10.52:1  PASA
+//   success (texto) surface              8.92:1  PASA
+//   warning (texto) background          10.98:1  PASA
+//   warning (texto) surface              9.31:1  PASA
+//   info (texto)    background           7.21:1  PASA
+//   info (texto)    surface              6.11:1  PASA
+//   primary (Badge) primarySurface       5.16:1  PASA
+//   success (Badge) successSurface       6.89:1  PASA
+//   warning (Badge) warningSurface       7.13:1  PASA
+//   danger (Badge)  dangerSurface        4.63:1  PASA (el más ajustado de los acentos)
+//   info (Badge)    infoSurface          5.03:1  PASA
+//   textOnPrimary   primary (Button)     7.37:1  PASA
+//   textOnPrimary   primaryPressed       4.90:1  PASA
+//   textOnPrimary   danger (Button)      6.63:1  PASA — ver nota textOnPrimary abajo
+//
+// NOTA textOnPrimary: en claro es blanco puro porque primary/danger son
+// oscuros. En oscuro `primary` se aclaró (ver abajo) — un teal claro con
+// texto BLANCO encima no llega a AA (ratio ~2.5:1), así que aquí
+// textOnPrimary pasa a ser OSCURO (el mismo tono que `background`). Como
+// Button.tsx ya lee este único token tanto para el botón primary como para
+// el danger (sin blanco hardcodeado en ningún sitio), y `danger` en oscuro
+// también resulta lo bastante claro (6.63:1 con texto oscuro encima), un
+// solo valor de textOnPrimary sirve para los dos sin más cambios de código.
+const darkNeutrals = {
+  background: '#171412',
+  surface: '#282320',
+  border: '#3a352f',
+  borderStrong: '#78716c', // mismo hex que borderStrong/textMuted de `base` — funciona en los dos extremos
+  textPrimary: '#f2ede8', // blanco-hueso, NO #fff puro
+  textSecondary: '#c2b8ae',
+  textMuted: '#9b9088',
+  // Oscuro (no blanco): con `primary` aclarado para oscuro, el texto de un
+  // botón primary/danger tiene que ser oscuro para llegar a AA — ver nota arriba.
+  textOnPrimary: '#171412',
+  disabledBg: '#322d29',
+  disabledText: '#726b64', // 2.59:1 vs disabledBg — exento de AA (componente inactivo, igual que en claro)
+};
+
+// Acentos de marca aclarados para oscuro — un teal medio-claro que resalta
+// sobre background/surface (7.37:1 / 6.24:1 como texto), con texto OSCURO
+// encima en vez de blanco (ver nota textOnPrimary arriba). primarySurface se
+// REHACE, no se aclara: es un teal oscuro apagado (mezcla de un teal 900
+// sobre `surface`) para que `primary` como texto de Badge siga leyéndose.
+const darkPrimary = {
+  primary: '#14b8a6', // teal-500
+  primaryHover: '#2dd4bf', // teal-400, más claro al pasar el cursor
+  primaryPressed: '#0d9488', // teal-600, más oscuro al pulsar (misma dirección que en claro)
+  primaryVivid: '#2dd4bf', // acentos sin texto (iconos, pestaña activa) — sin verificar para texto, igual que en claro
+  primaryDisabled: '#3f6f68', // teal apagado, baja saturación — sin AA (estado inactivo)
+  primarySurface: '#1f3633', // teal oscuro apagado; primary encima: 5.16:1
+};
+
+// Estados genéricos aclarados para oscuro — mismo reparto de matices que en
+// claro (verde/ámbar/rojo/azul), recalculados para leerse como TEXTO sobre
+// fondo oscuro (su uso real: mensajes de error/éxito, bordes de aviso,
+// texto de Badge) en vez de como texto oscuro sobre fondo claro.
+// DALTONISMO (rojo-verde): success y danger se separaron también por
+// LUMINOSIDAD, no solo por matiz — L* 79.2 (success) frente a L* 64.1
+// (danger), 15.1 puntos de diferencia — para que la simulación de
+// daltonismo de /theme-preview siga mostrando dos tonos distinguibles bajo
+// deficiencia rojo-verde. La salvaguarda real sigue siendo estructural
+// (etiqueta de Badge, glifos ✓/✕), esto es una mejora adicional, igual que
+// en claro.
+const darkAccents = {
+  success: '#4ade80',
+  successSurface: '#1d3d27', // dark verde apagado; success encima: 6.89:1
+  warning: '#fbbf24',
+  warningSurface: '#542d17', // dark ámbar apagado; warning encima: 7.13:1
+  danger: '#f87171',
+  dangerSurface: '#58201e', // dark rojo apagado; danger encima: 4.63:1 (el más ajustado)
+  info: '#60a5fa',
+  infoSurface: '#23305a', // dark azul apagado; info encima: 5.03:1
+};
+
+// Escala de CARGA (vista Mes) — SENTIDO INVERTIDO respecto a claro. En claro
+// "más oscuro = más lleno" funciona porque el fondo de página es claro; en
+// oscuro esa misma regla fundiría "completo" con el fondo y haría que
+// "libre" resaltara más que un día lleno, justo al revés de lo deseado. Por
+// eso en oscuro es "MÁS BRILLANTE = MÁS LLENO": loadFree apagado y oscuro
+// (pero distinguible de loadClosed/background), loadPartial medio, loadFull
+// el más brillante. Sigue siendo la MISMA familia teal (no cambia de matiz,
+// solo de sentido), y la señal sigue siendo LUMINOSIDAD — crítico para
+// daltonismo: L* 24.3 -> 44.5 -> 76.9, saltos de 20.1 y 32.4 (comparable a
+// los saltos de claro, 23.5 y 31.7).
+const darkLoadScale = {
+  loadFree: '#0f413c', // L* 24.3 — apagado; textPrimary encima 9.80:1; ~1.6:1 vs background (visible, no se funde)
+  loadPartial: '#0f766e', // L* 44.5 (mismo hex que `primary` de claro); textPrimary encima 4.71:1
+  loadFull: '#2dd4bf', // L* 76.9, el más brillante — el nivel "completo"; ver textOnLoadFull
+  // Antes blanco (claro: loadFull es el más OSCURO). En oscuro loadFull es
+  // el más BRILLANTE, así que el texto de la celda sobre él pasa a oscuro.
+  textOnLoadFull: '#171412', // 9.85:1 sobre loadFull
+  // Gris NEUTRO (sin teal) a propósito, para no leerse como "un poco de
+  // carga": un pasado-abierto no es un nivel más de la escala. L* 26.6,
+  // similar al de loadFree por diseño (mismo criterio que en claro, donde
+  // loadPast también quedaba cerca de loadFree en luminosidad) — la
+  // distinción real es de MATIZ (gris cálido neutro vs teal), no de L*.
+  loadPast: '#453e34', // textPrimary encima 9.06:1
+};
+
+// Hueco "Libre" de Semana (freeSlotBorder/freeSlotText) — versión CLARA del
+// mismo gris-azulado frío de claro, para que se lea sobre el fondo oscuro
+// del hueco (COLOR_FREE_BG -> surface). Sigue sin ser verde, a propósito
+// (ver nota de la interfaz ColorTokens).
+const darkFreeSlot = {
+  freeSlotBorder: '#94a3b8', // 6.06:1 vs surface (>=3 exigido a un borde)
+  freeSlotText: '#cbd5e1', // 10.47:1 vs surface — "Libre" se lee con margen de sobra
+};
+
+export const darkColors: ColorTokens = {
+  primary: darkPrimary.primary,
+  primaryHover: darkPrimary.primaryHover,
+  primaryPressed: darkPrimary.primaryPressed,
+  primaryVivid: darkPrimary.primaryVivid,
+  primarySurface: darkPrimary.primarySurface,
+  primaryDisabled: darkPrimary.primaryDisabled,
+
+  background: darkNeutrals.background,
+  surface: darkNeutrals.surface,
+  border: darkNeutrals.border,
+  borderStrong: darkNeutrals.borderStrong,
+  textPrimary: darkNeutrals.textPrimary,
+  textSecondary: darkNeutrals.textSecondary,
+  textMuted: darkNeutrals.textMuted,
+  textOnPrimary: darkNeutrals.textOnPrimary,
+  disabledBg: darkNeutrals.disabledBg,
+  disabledText: darkNeutrals.disabledText,
+
+  success: darkAccents.success,
+  successSurface: darkAccents.successSurface,
+  warning: darkAccents.warning,
+  warningSurface: darkAccents.warningSurface,
+  danger: darkAccents.danger,
+  dangerSurface: darkAccents.dangerSurface,
+  info: darkAccents.info,
+  infoSurface: darkAccents.infoSurface,
+
+  // loadClosed reutiliza el `background` oscuro, mismo criterio que en claro
+  // ("cerrado" = tono de fondo de página).
+  loadClosed: darkNeutrals.background,
+  loadPast: darkLoadScale.loadPast,
+  loadFree: darkLoadScale.loadFree,
+  loadPartial: darkLoadScale.loadPartial,
+  loadFull: darkLoadScale.loadFull,
+  textOnLoadFull: darkLoadScale.textOnLoadFull,
+
+  freeSlotBorder: darkFreeSlot.freeSlotBorder,
+  freeSlotText: darkFreeSlot.freeSlotText,
+};
 
 // Estados de cita: ORIGEN ÚNICO de verdad del reparto estado -> tono
 // (ámbar/verde/azul/gris/rojo), con valores recalculados para cumplir AA.

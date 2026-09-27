@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type PropsWithChildren } from 'react';
 import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { theme as staticTheme, type Theme } from '@/theme';
+import { theme as staticTheme, darkColors, type Theme } from '@/theme';
 
 export type ThemePreference = 'system' | 'light' | 'dark';
 
@@ -23,12 +23,10 @@ interface ThemeContextValue {
 // mismo, así que los 26 archivos que aún importan `theme` directamente
 // compilan y se ven igual, sin migrar en este subpaso.
 //
-// HOY solo existe `lightColors` (la paleta oscura es el paso 3 de modo
-// oscuro) — así que este Provider, sea cual sea la preferencia o el
-// esquema del sistema, sirve SIEMPRE el theme claro (ver `colors` más
-// abajo). Lo que SÍ queda montado ya es la lógica de selección completa
-// (preferencia guardada + esquema del sistema vía useColorScheme): cuando
-// exista `darkColors`, solo hay que sustituir esa línea, nada de lo demás.
+// darkColors ya existe (theme/colors.ts) — paso 3, tanda 1: solo los
+// neutros están diseñados de verdad; el resto de claves son provisionales
+// (mismo valor que en claro) hasta la tanda siguiente. Ver el comentario
+// de darkColors para el detalle y los ratios AA de los neutros.
 const ThemeContext = createContext<ThemeContextValue>({
   theme: staticTheme,
   preference: 'system',
@@ -69,15 +67,12 @@ export function ThemeProvider({ children }: PropsWithChildren) {
   const resolvedScheme: 'light' | 'dark' =
     preference === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : preference;
 
-  // TODO (paso 3 modo oscuro): cuando exista `darkColors` en
-  // theme/colors.ts, cambiar la rama 'dark' de `staticTheme.colors` a
-  // `darkColors`. Hoy no hay paleta oscura, así que las dos ramas sirven
-  // la misma paleta clara a propósito.
-  const colors = resolvedScheme === 'dark' ? staticTheme.colors : staticTheme.colors;
+  const colors = resolvedScheme === 'dark' ? darkColors : staticTheme.colors;
 
-  // Memoizado por `colors`: mientras solo exista una paleta, `colors` es
-  // siempre la misma referencia, así que esto no crea un objeto nuevo (ni
-  // dispara re-renders) en cada render del Provider.
+  // Memoizado por `colors`: cada paleta es una referencia estable (el mismo
+  // objeto `lightColors`/`darkColors` de theme/colors.ts), así que esto solo
+  // crea un objeto nuevo cuando `colors` cambia de verdad (al cambiar de
+  // esquema), no en cada render del Provider.
   const resolvedTheme = useMemo<Theme>(() => ({ ...staticTheme, colors }), [colors]);
 
   const value = useMemo<ThemeContextValue>(

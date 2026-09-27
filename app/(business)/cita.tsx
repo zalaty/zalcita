@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useBusiness } from '@/context/BusinessContext';
@@ -15,23 +15,10 @@ import {
   zonedTimeToUtc,
 } from '@/lib/timezone';
 import { useTheme } from '@/context/ThemeContext';
-import { Screen } from '@/components/ui';
+import { Button, Input, Screen } from '@/components/ui';
 
-const inputStyle = { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12 };
 // Mismo patrón que ajustes/datos.tsx: email opcional, solo se valida si trae algo.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const buttonStyle = { backgroundColor: '#111', padding: 14, borderRadius: 8 };
-const buttonDisabledStyle = { ...buttonStyle, backgroundColor: '#ccc' };
-const buttonTextStyle = { color: '#fff', textAlign: 'center' as const, fontWeight: '600' as const };
-const warningButtonStyle = { ...buttonStyle, backgroundColor: '#b45309' };
-const formBoxStyle = { gap: 8, padding: 10, borderRadius: 8, backgroundColor: '#f7f7f7' };
-const rowStyle = {
-  padding: 10,
-  borderRadius: 8,
-  borderWidth: 1,
-  borderColor: '#eee',
-};
-const sectionTitleStyle = { fontSize: 15, fontWeight: '700' as const };
 
 interface ClientOption {
   id: string;
@@ -105,6 +92,17 @@ function findOverlappingAppointments(
 // negocio, sea cual sea la hora.
 export default function Cita() {
   const theme = useTheme();
+  // useTheme() solo puede llamarse dentro de un componente, así que estos
+  // estilos (antes constantes a nivel de módulo con hex sueltos) pasan a
+  // calcularse aquí — mismo patrón que ajustes/index.tsx.
+  const sectionTitleStyle = { ...theme.textStyles.heading2, color: theme.colors.textPrimary };
+  const rowStyle = {
+    padding: theme.spacing.md,
+    borderRadius: theme.radii.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+  };
   const router = useRouter();
   const { business } = useBusiness();
   const {
@@ -397,7 +395,7 @@ export default function Cita() {
   if (loadError) {
     return (
       <Screen style={{ alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        <Text style={{ color: 'crimson' }}>{loadError}</Text>
+        <Text style={{ ...theme.textStyles.body, color: theme.colors.danger }}>{loadError}</Text>
       </Screen>
     );
   }
@@ -529,92 +527,95 @@ export default function Cita() {
             {isEdit ? 'Mover cita' : 'Nueva cita'}
           </Text>
           <Pressable onPress={() => router.back()}>
-            <Text style={{ color: '#666' }}>Cancelar</Text>
+            <Text style={{ ...theme.textStyles.body, color: theme.colors.textSecondary }}>Cancelar</Text>
           </Pressable>
         </View>
 
-      <View style={{ gap: 8 }}>
+      <View style={{ gap: theme.spacing.sm }}>
         <Text style={sectionTitleStyle}>Cliente</Text>
         {isEdit ? (
-          <Text style={{ fontSize: 15 }}>
+          <Text style={{ ...theme.textStyles.body, color: theme.colors.textPrimary }}>
             {clientName}
             {clientPhone ? ` · ${clientPhone}` : ''}
           </Text>
         ) : clientId ? (
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={{ fontSize: 15 }}>
+            <Text style={{ ...theme.textStyles.body, color: theme.colors.textPrimary }}>
               {clientName} · {clientPhone}
             </Text>
             <Pressable onPress={resetClient}>
-              <Text style={{ color: '#1d4ed8' }}>Cambiar</Text>
+              <Text style={{ ...theme.textStyles.small, color: theme.colors.primary }}>Cambiar</Text>
             </Pressable>
           </View>
         ) : showNewClientForm ? (
-          <View style={formBoxStyle}>
-            <TextInput placeholder="Nombre" value={newClientName} onChangeText={setNewClientName} style={inputStyle} />
-            <TextInput
+          <View
+            style={{
+              gap: theme.spacing.sm,
+              padding: theme.spacing.md,
+              borderRadius: theme.radii.md,
+              borderWidth: 1,
+              borderColor: theme.colors.border,
+              backgroundColor: theme.colors.surface,
+            }}
+          >
+            <Input placeholder="Nombre" value={newClientName} onChangeText={setNewClientName} />
+            <Input
               placeholder="Teléfono"
               value={newClientPhone}
               onChangeText={setNewClientPhone}
               keyboardType="phone-pad"
-              style={inputStyle}
             />
-            <TextInput
+            <Input
               placeholder="Email (opcional)"
               value={newClientEmail}
               onChangeText={setNewClientEmail}
               autoCapitalize="none"
               keyboardType="email-address"
-              style={inputStyle}
+              error={!newClientEmailValid ? 'El email no tiene un formato válido.' : undefined}
             />
-            {!newClientEmailValid && (
-              <Text style={{ color: 'crimson', fontSize: 13 }}>El email no tiene un formato válido.</Text>
-            )}
             <Text style={{ ...theme.textStyles.caption, color: theme.colors.textSecondary }}>
               Al dar de alta a este cliente confirmas que le has informado de que sus datos se usarán para
               gestionar sus citas.
             </Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <Pressable
-                onPress={handleCreateClient}
-                disabled={!canCreateClient}
-                style={{ flex: 1, ...(canCreateClient ? buttonStyle : buttonDisabledStyle) }}
-              >
-                <Text style={buttonTextStyle}>{savingNewClient ? 'Creando…' : 'Crear cliente'}</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setShowNewClientForm(false)}
-                style={{ flex: 1, padding: 14, borderRadius: 8, borderWidth: 1, borderColor: '#ccc' }}
-              >
-                <Text style={{ textAlign: 'center' }}>Cancelar</Text>
-              </Pressable>
+            <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+              <View style={{ flex: 1 }}>
+                <Button
+                  label={savingNewClient ? 'Creando…' : 'Crear cliente'}
+                  onPress={handleCreateClient}
+                  disabled={!canCreateClient}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Button label="Cancelar" onPress={() => setShowNewClientForm(false)} variant="secondary" />
+              </View>
             </View>
-            {newClientError && <Text style={{ color: 'crimson' }}>{newClientError}</Text>}
+            {newClientError && (
+              <Text style={{ ...theme.textStyles.small, color: theme.colors.danger }}>{newClientError}</Text>
+            )}
           </View>
         ) : (
-          <View style={{ gap: 8 }}>
-            <TextInput
+          <View style={{ gap: theme.spacing.sm }}>
+            <Input
               placeholder="Buscar por nombre o teléfono"
               value={clientQuery}
               onChangeText={setClientQuery}
-              style={inputStyle}
             />
             {searchingClients && <ActivityIndicator />}
             {clientResults.map((c) => (
               <Pressable key={c.id} onPress={() => selectClient(c)} style={rowStyle}>
-                <Text>
+                <Text style={{ ...theme.textStyles.body, color: theme.colors.textPrimary }}>
                   {c.name} · {c.phone}
                 </Text>
               </Pressable>
             ))}
             <Pressable onPress={() => setShowNewClientForm(true)}>
-              <Text style={{ color: '#1d4ed8', fontWeight: '600' }}>+ Cliente nuevo</Text>
+              <Text style={{ ...theme.textStyles.bodyMedium, color: theme.colors.primary }}>+ Cliente nuevo</Text>
             </Pressable>
           </View>
         )}
       </View>
 
-      <View style={{ gap: 8 }}>
+      <View style={{ gap: theme.spacing.sm }}>
         <Text style={sectionTitleStyle}>Servicio</Text>
         {services === null ? (
           <ActivityIndicator />
@@ -623,13 +624,17 @@ export default function Cita() {
             <Pressable
               key={s.id}
               onPress={() => setServiceId(s.id)}
-              style={{ ...rowStyle, borderColor: serviceId === s.id ? '#111' : '#eee', borderWidth: serviceId === s.id ? 2 : 1 }}
+              style={{
+                ...rowStyle,
+                borderColor: serviceId === s.id ? theme.colors.primary : theme.colors.border,
+                borderWidth: serviceId === s.id ? 2 : 1,
+              }}
             >
-              <Text style={{ fontSize: 15 }}>
+              <Text style={{ ...theme.textStyles.body, color: theme.colors.textPrimary }}>
                 {s.name}
                 {!s.active ? ' (Inactivo)' : ''}
               </Text>
-              <Text style={{ fontSize: 13, color: '#666' }}>
+              <Text style={{ ...theme.textStyles.small, color: theme.colors.textSecondary }}>
                 {s.duration_minutes} min · {s.price} €
               </Text>
             </Pressable>
@@ -637,27 +642,37 @@ export default function Cita() {
         )}
       </View>
 
-      <View style={{ gap: 8 }}>
+      <View style={{ gap: theme.spacing.sm }}>
         <Text style={sectionTitleStyle}>Fecha y hora</Text>
 
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Pressable onPress={() => setSelectedDate((d) => addDaysToDateStr(d, -1))} style={{ padding: 8 }}>
-            <Text style={{ fontSize: 18 }}>‹</Text>
+          <Pressable onPress={() => setSelectedDate((d) => addDaysToDateStr(d, -1))} style={{ padding: theme.spacing.sm }}>
+            <Text style={{ fontSize: theme.fontSizes.lg, color: theme.colors.textPrimary }}>‹</Text>
           </Pressable>
-          <Text style={{ flex: 1, textAlign: 'center', fontSize: 14, fontWeight: '600', textTransform: 'capitalize' }}>
+          <Text
+            style={{
+              flex: 1,
+              textAlign: 'center',
+              ...theme.textStyles.bodyMedium,
+              color: theme.colors.textPrimary,
+              textTransform: 'capitalize',
+            }}
+          >
             {formatLongDateInZone(zonedTimeToUtc(selectedDate, '00:00', business.timezone), business.timezone)}
           </Text>
-          <Pressable onPress={() => setSelectedDate((d) => addDaysToDateStr(d, 1))} style={{ padding: 8 }}>
-            <Text style={{ fontSize: 18 }}>›</Text>
+          <Pressable onPress={() => setSelectedDate((d) => addDaysToDateStr(d, 1))} style={{ padding: theme.spacing.sm }}>
+            <Text style={{ fontSize: theme.fontSizes.lg, color: theme.colors.textPrimary }}>›</Text>
           </Pressable>
         </View>
 
         {!selectedService ? (
-          <Text style={{ color: '#666' }}>Elige antes un servicio para ver horas guía.</Text>
+          <Text style={{ ...theme.textStyles.body, color: theme.colors.textSecondary }}>
+            Elige antes un servicio para ver horas guía.
+          </Text>
         ) : loadingGuide ? (
           <ActivityIndicator />
         ) : (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
             {slots.map((slot) => {
               const label = formatTimeInZone(slot.start, business.timezone);
               const selected = manualTime === label;
@@ -666,37 +681,56 @@ export default function Cita() {
                   key={slot.start.toISOString()}
                   onPress={() => setManualTime(label)}
                   style={{
-                    paddingVertical: 8,
-                    paddingHorizontal: 12,
-                    borderRadius: 8,
+                    paddingVertical: theme.spacing.sm,
+                    paddingHorizontal: theme.spacing.md,
+                    borderRadius: theme.radii.sm,
                     borderWidth: 1,
                     borderStyle: slot.available ? 'solid' : 'dashed',
-                    borderColor: selected ? '#111' : slot.available ? '#ddd' : '#ccc',
-                    backgroundColor: selected ? '#111' : slot.available ? 'transparent' : '#f2f2f2',
+                    borderColor: selected ? theme.colors.primary : slot.available ? theme.colors.border : theme.colors.disabledBg,
+                    backgroundColor: selected ? theme.colors.primary : slot.available ? 'transparent' : theme.colors.disabledBg,
                   }}
                 >
-                  <Text style={{ color: selected ? '#fff' : slot.available ? '#111' : '#999' }}>{label}</Text>
+                  <Text
+                    style={{
+                      color: selected ? theme.colors.textOnPrimary : slot.available ? theme.colors.textPrimary : theme.colors.disabledText,
+                    }}
+                  >
+                    {label}
+                  </Text>
                 </Pressable>
               );
             })}
             {slots.length === 0 && (
-              <Text style={{ color: '#666' }}>Sin horas guía ese día — puedes escribir una hora igualmente.</Text>
+              <Text style={{ ...theme.textStyles.body, color: theme.colors.textSecondary }}>
+                Sin horas guía ese día — puedes escribir una hora igualmente.
+              </Text>
             )}
           </View>
         )}
 
-        <TextInput placeholder="Hora (HH:mm)" value={manualTime} onChangeText={setManualTime} style={inputStyle} />
+        <Input placeholder="Hora (HH:mm)" value={manualTime} onChangeText={setManualTime} />
 
         {hasWarnings && (
-          <View style={{ backgroundColor: '#fff3cd', borderWidth: 1, borderColor: '#ffe69c', borderRadius: 8, padding: 10, gap: 4 }}>
-            {outsideHours && <Text style={{ color: '#664d03', fontSize: 13 }}>Fuera del horario habitual del negocio.</Text>}
+          <View
+            style={{
+              backgroundColor: theme.colors.warningSurface,
+              borderRadius: theme.radii.md,
+              padding: theme.spacing.md,
+              gap: theme.spacing.xs,
+            }}
+          >
+            {outsideHours && (
+              <Text style={{ ...theme.textStyles.small, color: theme.colors.warning }}>
+                Fuera del horario habitual del negocio.
+              </Text>
+            )}
             {closed && (
-              <Text style={{ color: '#664d03', fontSize: 13 }}>
+              <Text style={{ ...theme.textStyles.small, color: theme.colors.warning }}>
                 Este día está marcado como cerrado{closedReason ? `: ${closedReason}` : '.'}
               </Text>
             )}
             {overlappingAppointments.map((a) => (
-              <Text key={a.id} style={{ color: '#664d03', fontSize: 13 }}>
+              <Text key={a.id} style={{ ...theme.textStyles.small, color: theme.colors.warning }}>
                 Se solapa con la cita de {a.clientName} a las {formatTimeInZone(new Date(a.start_time), business.timezone)}.
               </Text>
             ))}
@@ -707,14 +741,26 @@ export default function Cita() {
       <Pressable
         onPress={handleSubmit}
         disabled={!canSubmit}
-        style={!canSubmit ? buttonDisabledStyle : hasWarnings ? warningButtonStyle : buttonStyle}
+        style={{
+          borderRadius: theme.radii.md,
+          paddingVertical: theme.spacing.md,
+          paddingHorizontal: theme.spacing.lg,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: !canSubmit ? theme.colors.disabledBg : hasWarnings ? theme.colors.warning : theme.colors.primary,
+        }}
       >
-        <Text style={buttonTextStyle}>
+        <Text
+          style={{
+            ...theme.textStyles.bodyMedium,
+            color: !canSubmit ? theme.colors.disabledText : theme.colors.textOnPrimary,
+          }}
+        >
           {submitting ? 'Guardando…' : hasWarnings ? 'Confirmar de todos modos' : 'Confirmar'}
         </Text>
       </Pressable>
 
-      {submitError && <Text style={{ color: 'crimson' }}>{submitError}</Text>}
+      {submitError && <Text style={{ ...theme.textStyles.small, color: theme.colors.danger }}>{submitError}</Text>}
       </ScrollView>
     </Screen>
   );

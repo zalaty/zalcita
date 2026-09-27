@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
-import { theme } from '@/theme';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { appointmentStatusColors } from '@/theme';
+import { useTheme, useThemePreference, type ThemePreference } from '@/context/ThemeContext';
 import { Badge, Button, Card, Input } from '@/components/ui';
 import { APPOINTMENT_STATUS_PRESENTATION, STATUS_LABELS } from '@/lib/appointmentStatusPresentation';
 import type { AppointmentStatus } from '@/types/database';
@@ -13,6 +13,7 @@ import type { AppointmentStatus } from '@/types/database';
 // No consume ningún dato real ni requiere sesión.
 
 function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
+  const theme = useTheme();
   return (
     <View style={{ gap: theme.spacing.md, marginBottom: theme.spacing.xxl }}>
       <View style={{ gap: theme.spacing.xs }}>
@@ -27,6 +28,7 @@ function Section({ title, description, children }: { title: string; description?
 }
 
 function Swatch({ label, hex, contrast }: { label: string; hex: string; contrast?: string }) {
+  const theme = useTheme();
   return (
     <View style={{ width: 148, gap: theme.spacing.xs }}>
       <View
@@ -48,6 +50,7 @@ function Swatch({ label, hex, contrast }: { label: string; hex: string; contrast
 }
 
 function SwatchRow({ children }: { children: React.ReactNode }) {
+  const theme = useTheme();
   return <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.md }}>{children}</View>;
 }
 
@@ -90,6 +93,7 @@ function simulateCvd(hex: string, type: CvdType): string {
 }
 
 function CvdComparisonRow({ label, hex }: { label: string; hex: string }) {
+  const theme = useTheme();
   const chips: { chip: string; swatchHex: string }[] = [
     { chip: 'real', swatchHex: hex },
     { chip: 'protanopía', swatchHex: simulateCvd(hex, 'protanopia') },
@@ -108,7 +112,53 @@ function CvdComparisonRow({ label, hex }: { label: string; hex: string }) {
   );
 }
 
+// Selector Sistema/Claro/Oscuro — solo para esta guía de estilo, así se
+// puede validar la paleta oscura sin depender del esquema real del
+// dispositivo. useThemePreference() es el mismo hook pensado para el
+// futuro toggle de Ajustes (paso 3 de modo oscuro); aquí es su primer uso.
+function ThemeToggle() {
+  const theme = useTheme();
+  const { preference, setPreference } = useThemePreference();
+  const options: { value: ThemePreference; label: string }[] = [
+    { value: 'system', label: 'Sistema' },
+    { value: 'light', label: 'Claro' },
+    { value: 'dark', label: 'Oscuro' },
+  ];
+  return (
+    <View style={{ flexDirection: 'row', gap: theme.spacing.sm, marginBottom: theme.spacing.xl }}>
+      {options.map((opt) => {
+        const selected = preference === opt.value;
+        return (
+          <Pressable
+            key={opt.value}
+            onPress={() => setPreference(opt.value)}
+            style={{
+              paddingVertical: theme.spacing.sm,
+              paddingHorizontal: theme.spacing.md,
+              borderRadius: theme.radii.md,
+              borderWidth: 1,
+              borderColor: selected ? theme.colors.primary : theme.colors.border,
+              backgroundColor: selected ? theme.colors.primary : 'transparent',
+            }}
+          >
+            <Text
+              style={{
+                ...theme.textStyles.small,
+                fontWeight: selected ? theme.fontWeights.semibold : theme.fontWeights.regular,
+                color: selected ? theme.colors.textOnPrimary : theme.colors.textPrimary,
+              }}
+            >
+              {opt.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 export default function ThemePreview() {
+  const theme = useTheme();
   const [inputValue, setInputValue] = useState('');
   const [loadingDemo, setLoadingDemo] = useState(false);
 
@@ -120,6 +170,8 @@ export default function ThemePreview() {
           Guía de estilo viva. Todo lo de aquí consume theme/ y components/ui/ — nada de hex ni tamaños sueltos.
         </Text>
       </View>
+
+      <ThemeToggle />
 
       <Section
         title="Marca"
