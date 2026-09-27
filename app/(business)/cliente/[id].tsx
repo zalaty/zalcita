@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useBusiness } from '@/context/BusinessContext';
@@ -44,6 +44,10 @@ function normalizePhoneForWhatsApp(phone: string): { valid: boolean; number: str
 
 export default function ClienteFicha() {
   const theme = useTheme();
+  const { width } = useWindowDimensions();
+  // Mismo mecanismo que (client)/disponibilidad.tsx e (client)/index.tsx —
+  // no se inventa un breakpoint nuevo.
+  const isNarrow = width < theme.breakpoints.narrow;
   const router = useRouter();
   const { business } = useBusiness();
   const { id: clientId } = useLocalSearchParams<{ id: string }>();
@@ -210,10 +214,14 @@ export default function ClienteFicha() {
             </Text>
           )}
 
-          <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+          {/* En móvil estrecho (mismo breakpoint que disponibilidad.tsx/
+              index.tsx) se apilan en 1 columna — en fila de 3 quedaban
+              apretadas y "Citas completadas" partía en dos líneas. En
+              ancho, siguen en fila como antes. */}
+          <View style={{ flexDirection: isNarrow ? 'column' : 'row', gap: theme.spacing.sm }}>
             <View
               style={{
-                flex: 1,
+                ...(isNarrow ? { width: '100%' as const } : { flex: 1 }),
                 padding: theme.spacing.md,
                 borderRadius: theme.radii.md,
                 borderWidth: 1,
@@ -228,7 +236,7 @@ export default function ClienteFicha() {
             </View>
             <View
               style={{
-                flex: 1,
+                ...(isNarrow ? { width: '100%' as const } : { flex: 1 }),
                 padding: theme.spacing.md,
                 borderRadius: theme.radii.md,
                 borderWidth: 1,
@@ -243,7 +251,7 @@ export default function ClienteFicha() {
             </View>
             <View
               style={{
-                flex: 1,
+                ...(isNarrow ? { width: '100%' as const } : { flex: 1 }),
                 padding: theme.spacing.md,
                 borderRadius: theme.radii.md,
                 borderWidth: 1,

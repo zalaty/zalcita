@@ -1309,6 +1309,14 @@ function CalendarioDia({
                         ¿Seguro que quieres cancelar esta cita?
                       </Text>
                       <View style={{ flexDirection: 'row', gap: 8 }}>
+                        {/* Relleno danger, no contorno — mismo tratamiento que
+                            "Sí, cancelar" en mis-citas.tsx (lado cliente):
+                            la CONFIRMACIÓN de una acción destructiva va
+                            rellena en toda la app. Estilo a mano (no el
+                            componente Button) para mantener el mismo
+                            tamaño compacto que sus chips vecinos
+                            (Confirmar/Marcar completada/etc. en esta misma
+                            fila) — Button es más grande y desentonaría aquí. */}
                         <Pressable
                           onPress={() => handleChangeStatus(item.id, 'cancelled')}
                           disabled={isUpdating}
@@ -1316,11 +1324,10 @@ function CalendarioDia({
                             paddingVertical: 6,
                             paddingHorizontal: 10,
                             borderRadius: 6,
-                            borderWidth: 1,
-                            borderColor: theme.colors.danger,
+                            backgroundColor: theme.colors.danger,
                           }}
                         >
-                          <Text style={{ fontSize: 13, color: theme.colors.danger }}>
+                          <Text style={{ fontSize: 13, color: theme.colors.textOnPrimary }}>
                             {isUpdating ? '…' : 'Sí, cancelar'}
                           </Text>
                         </Pressable>
