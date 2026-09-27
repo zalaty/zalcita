@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useBusiness } from '@/context/BusinessContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -13,6 +14,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // timezone queda fijo en Europe/Madrid para el MVP.
 export default function DatosNegocio() {
   const theme = useTheme();
+  const router = useRouter();
   const { business, refreshBusiness } = useBusiness();
 
   const [name, setName] = useState('');
@@ -82,6 +84,14 @@ export default function DatosNegocio() {
           alignSelf: 'center',
         }}
       >
+        {/* Navegación EXPLÍCITA, nunca router.back(): mismo patrón que
+            "‹ Volver a clientes" en cliente/[id].tsx — esta subpágina vive
+            en el Stack anidado de ajustes/_layout.tsx, y la pestaña
+            "Ajustes" de la tab bar no te devuelve aquí sola. */}
+        <Pressable onPress={() => router.replace('/(business)/ajustes')}>
+          <Text style={{ ...theme.textStyles.small, color: theme.colors.primary }}>‹ Volver a Ajustes</Text>
+        </Pressable>
+
         <Card>
           <Text style={{ ...theme.textStyles.heading2, color: theme.colors.textPrimary, marginBottom: theme.spacing.md }}>
             Datos del negocio

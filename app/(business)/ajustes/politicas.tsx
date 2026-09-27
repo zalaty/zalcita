@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Switch, Text, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useBusiness } from '@/context/BusinessContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -33,6 +33,7 @@ const PAYMENT_OPTIONS: { value: PaymentPolicy; label: string }[] = [
 // el dueño las configura en vez de insertar filas por SQL.
 export default function Politicas() {
   const theme = useTheme();
+  const router = useRouter();
   const { business, refreshBusiness } = useBusiness();
 
   // chipStyle/chipTextStyle/optionRowStyle: antes funciones a nivel de
@@ -225,6 +226,14 @@ export default function Politicas() {
           alignSelf: 'center',
         }}
       >
+        {/* Navegación EXPLÍCITA, nunca router.back(): mismo patrón que
+            "‹ Volver a clientes" en cliente/[id].tsx — esta subpágina vive
+            en el Stack anidado de ajustes/_layout.tsx, y la pestaña
+            "Ajustes" de la tab bar no te devuelve aquí sola. */}
+        <Pressable onPress={() => router.replace('/(business)/ajustes')}>
+          <Text style={{ ...theme.textStyles.small, color: theme.colors.primary }}>‹ Volver a Ajustes</Text>
+        </Pressable>
+
         <Text accessibilityRole="header" style={{ ...theme.textStyles.heading1, color: theme.colors.textPrimary }}>
           Políticas
         </Text>

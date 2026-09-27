@@ -1,6 +1,6 @@
-import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useCallback, useState, type CSSProperties } from 'react';
+import { ActivityIndicator, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useBusiness } from '@/context/BusinessContext';
 import type { Theme } from '@/theme';
@@ -62,31 +62,79 @@ function isValidDateStr(value: string): boolean {
   return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
 }
 
-// Reemplaza el TextInput libre "HH:mm" por dos filas de chips (hora +
-// minutos en pasos de 15) — a prueba de "25:99" por construcción, sin
-// depender de ningún selector nativo (ver conversación: el "estándar" del
-// ecosistema, @react-native-community/datetimepicker, no tiene ninguna
-// implementación para web).
+// Estilo del <select> HTML nativo (solo web) — mismos tokens que el resto
+// de inputs del sistema (ver components/ui/Input.tsx), pero en CSSProperties
+// de DOM (no ViewStyle de RN): es un elemento HTML real, no un componente RN.
+function webSelectStyle(theme: Theme): CSSProperties {
+  return {
+    flex: 1,
+    padding: theme.spacing.sm,
+    borderRadius: theme.radii.md,
+    border: `1px solid ${theme.colors.borderStrong}`,
+    backgroundColor: theme.colors.surface,
+    color: theme.colors.textPrimary,
+    fontSize: theme.fontSizes.base,
+    fontFamily: 'inherit',
+  };
+}
+
+// Reemplaza el TextInput libre "HH:mm" por dos desplegables (hora 00–23 +
+// minutos en pasos de 15). En WEB, un <select> HTML real: es lo único que
+// da una lista desplegable utilizable con ratón sin arrastrar (el problema
+// original — con la fila de chips + scroll horizontal, en web solo se veían
+// las horas 00–10, bloqueando cualquier tramo de tarde). No hay ninguna
+// librería de picker instalada en el proyecto (@react-native-picker/picker
+// no está en package.json) y no se instala una nueva solo para esto — en
+// MÓVIL, donde el arrastre táctil de la fila de chips ya funciona bien, se
+// mantiene esa misma UI sin tocar. Ambos caminos producen el mismo formato
+// de salida "HH:mm".
 function TimeSelector({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   const theme = useTheme();
   const [h, m] = value.includes(':') ? value.split(':') : ['', ''];
+  const hh = h || '00';
+  const mm = m || '00';
+
+  if (Platform.OS === 'web') {
+    const style = webSelectStyle(theme);
+    return (
+      <View style={{ gap: theme.spacing.xs, flex: 1 }}>
+        <Text style={{ ...theme.textStyles.caption, color: theme.colors.textSecondary }}>{label}</Text>
+        <View style={{ flexDirection: 'row', gap: theme.spacing.xs }}>
+          <select value={hh} onChange={(e) => onChange(`${e.target.value}:${mm}`)} style={style}>
+            {HOURS.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+          <select value={mm} onChange={(e) => onChange(`${hh}:${e.target.value}`)} style={style}>
+            {MINUTES.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={{ gap: theme.spacing.xs, flex: 1 }}>
       <Text style={{ ...theme.textStyles.caption, color: theme.colors.textSecondary }}>{label}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <View style={{ flexDirection: 'row', gap: theme.spacing.xs }}>
-          {HOURS.map((hh) => (
-            <Pressable key={hh} onPress={() => onChange(`${hh}:${m || '00'}`)} style={chipStyle(h === hh, theme)}>
-              <Text style={chipTextStyle(h === hh, theme)}>{hh}</Text>
+          {HOURS.map((opt) => (
+            <Pressable key={opt} onPress={() => onChange(`${opt}:${mm}`)} style={chipStyle(hh === opt, theme)}>
+              <Text style={chipTextStyle(hh === opt, theme)}>{opt}</Text>
             </Pressable>
           ))}
         </View>
       </ScrollView>
       <View style={{ flexDirection: 'row', gap: theme.spacing.xs }}>
-        {MINUTES.map((mm) => (
-          <Pressable key={mm} onPress={() => onChange(`${h || '00'}:${mm}`)} style={chipStyle(m === mm, theme)}>
-            <Text style={chipTextStyle(m === mm, theme)}>{mm}</Text>
+        {MINUTES.map((opt) => (
+          <Pressable key={opt} onPress={() => onChange(`${hh}:${opt}`)} style={chipStyle(mm === opt, theme)}>
+            <Text style={chipTextStyle(mm === opt, theme)}>{opt}</Text>
           </Pressable>
         ))}
       </View>
@@ -181,6 +229,7 @@ type EditingSlot = { dayOfWeek: number; original: WorkingHours | null } | null;
 
 export default function Horarios() {
   const theme = useTheme();
+  const router = useRouter();
   const { business } = useBusiness();
 
   // Fila-chip compartida por tramos de horario y excepciones: borde + sombra
@@ -461,6 +510,14 @@ export default function Horarios() {
           alignSelf: 'center',
         }}
       >
+        {/* Navegación EXPLÍCITA, nunca router.back(): mismo patrón que
+            "‹ Volver a clientes" en cliente/[id].tsx — esta subpágina vive
+            en el Stack anidado de ajustes/_layout.tsx, y la pestaña
+            "Ajustes" de la tab bar no te devuelve aquí sola. */}
+        <Pressable onPress={() => router.replace('/(business)/ajustes')}>
+          <Text style={{ ...theme.textStyles.small, color: theme.colors.primary }}>‹ Volver a Ajustes</Text>
+        </Pressable>
+
         <Text accessibilityRole="header" style={{ ...theme.textStyles.heading1, color: theme.colors.textPrimary }}>
           Horarios
         </Text>
