@@ -215,3 +215,42 @@ export async function fetchClientAppointments(
 
   return { data: merged, error: null };
 }
+
+export interface ClientBusiness {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+// Negocios donde el cliente autenticado tiene FICHA (no solo citas) — para
+// el selector de negocio en (client)/index.tsx cuando entra sin ?slug=.
+// Misma base que el primer paso de fetchClientAppointments (clients ->
+// business_id), pero deliberadamente una función aparte: esta pide `slug`
+// (que fetchClientAppointments no necesita) y no toca citas para nada, así
+// que ensuciar aquella función con esto sería mezclar dos usos distintos.
+export async function fetchClientBusinesses(
+  authUserId: string
+): Promise<{ data: ClientBusiness[] | null; error: string | null }> {
+  const { data: clientRows, error: clientsError } = await supabase
+    .from('clients')
+    .select('business_id')
+    .eq('auth_user_id', authUserId);
+
+  if (clientsError) return { data: null, error: clientsError.message };
+  if (!clientRows || clientRows.length === 0) return { data: [], error: null };
+
+  const businessIds = [...new Set(clientRows.map((c) => c.business_id))];
+
+  const { data: businesses, error: businessesError } = await supabase
+    .from('businesses')
+    .select('id, name, slug')
+    .in('id', businessIds);
+
+  if (businessesError) return { data: null, error: businessesError.message };
+
+  // Un negocio desactivado desde que el cliente reservó ya no lo devuelve
+  // el select de arriba (RLS: "negocios activos son públicos") — no es un
+  // error, simplemente no aparece en el selector.
+  const sorted = [...(businesses ?? [])].sort((a, b) => a.name.localeCompare(b.name));
+  return { data: sorted, error: null };
+}
