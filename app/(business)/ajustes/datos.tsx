@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as Clipboard from 'expo-clipboard';
 import { supabase } from '@/lib/supabase';
 import { useBusiness } from '@/context/BusinessContext';
 import { useTheme } from '@/context/ThemeContext';
+import { PUBLIC_APP_URL } from '@/lib/config';
 import { Button, Card, Input, Screen } from '@/components/ui';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -25,6 +27,14 @@ export default function DatosNegocio() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  const [copied, setCopied] = useState(false);
+
+  async function handleCopyBookingUrl(url: string) {
+    await Clipboard.setStringAsync(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   // business ya viene completo de useBusiness() — no hace falta una query
   // aparte. Se sincroniza cuando business cambia de verdad (incluido tras
@@ -73,6 +83,12 @@ export default function DatosNegocio() {
     );
   }
 
+  // Query param (?slug=), NO path — es como de verdad entra un cliente
+  // (ver app/(client)/index.tsx). Antes mostraba un dominio y formato
+  // equivocados (app.zalaty.com/{slug} como path); copiar ese enlace daba
+  // un link muerto.
+  const bookingUrl = `${PUBLIC_APP_URL}/?slug=${business.slug}`;
+
   return (
     <Screen>
       <ScrollView
@@ -120,9 +136,14 @@ export default function DatosNegocio() {
             }}
           >
             <Text style={{ ...theme.textStyles.small, color: theme.colors.textSecondary }}>Tu enlace de reservas</Text>
-            <Text style={{ ...theme.textStyles.bodyMedium, color: theme.colors.textPrimary }}>
-              app.zalaty.com/{business.slug}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
+              <Text style={{ ...theme.textStyles.bodyMedium, color: theme.colors.textPrimary }}>{bookingUrl}</Text>
+              <Pressable onPress={() => handleCopyBookingUrl(bookingUrl)}>
+                <Text style={{ ...theme.textStyles.small, color: theme.colors.primary }}>
+                  {copied ? '¡Copiado!' : 'Copiar'}
+                </Text>
+              </Pressable>
+            </View>
             <Text style={{ ...theme.textStyles.caption, color: theme.colors.textMuted }}>
               No se puede cambiar: es la dirección pública que ya puedes haber compartido (enlace o QR). Cambiarla
               rompería los que ya existen.
