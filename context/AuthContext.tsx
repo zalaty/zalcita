@@ -29,8 +29,33 @@ export function AuthProvider({ children }: PropsWithChildren) {
       resolveRole(data.session);
     });
 
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    // Fix de carrera (login de negocio caía en home de cliente, bien tras
+    // refrescar): `loading` solo arrancaba en true en el PRIMER montaje —
+    // una sesión nueva llegada aquí (login posterior) dejaba `loading` en
+    // false mientras resolveRole todavía no había terminado, así que
+    // index.tsx (y cualquier otro consumidor de `loading`) leía un `role`
+    // todavía viejo creyendo que ya estaba resuelto. Se resetea `loading` a
+    // true SOLO en eventos que pueden cambiar de IDENTIDAD (quién es el
+    // usuario) — nunca en TOKEN_REFRESHED (refresco silencioso automático,
+    // mismo usuario, cada ~55 min: resetear loading ahí parpadearía un
+    // spinner en mitad de una sesión activa, un bug nuevo peor que el que
+    // se arregla). Tampoco hace falta re-resolver el rol en absoluto para
+    // TOKEN_REFRESHED: el usuario es el mismo, no hay nada que recalcular.
+    const { data: subscription } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);
+
+      if (event === 'TOKEN_REFRESHED') {
+        return;
+      }
+
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'PASSWORD_RECOVERY') {
+        setLoading(true);
+      }
+
+      // USER_UPDATED / INITIAL_SESSION / eventos de MFA: no son un cambio
+      // de identidad (mismo usuario), así que no se resetea `loading`
+      // (evita el parpadeo) — pero se mantiene el rol sincronizado por si
+      // acaso, igual que ya hacía el código antes de este cambio.
       resolveRole(newSession);
     });
 

@@ -25,7 +25,8 @@ jobs:
         run: |
           echo "EXPO_PUBLIC_SUPABASE_URL=${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}" >> .env
           echo "EXPO_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}" >> .env
-
+          echo "EXPO_PUBLIC_SITE_URL=${{ secrets.EXPO_PUBLIC_SITE_URL }}" >> .env
+  
       - name: Export web (static)
         run: npx expo export --platform web
 

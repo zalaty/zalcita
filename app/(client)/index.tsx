@@ -8,9 +8,9 @@ import { Card, Screen } from '@/components/ui';
 import { fetchClientBusinesses, type ClientBusiness } from '@/lib/appointments';
 import type { Service } from '@/types/database';
 
-// Punto de entrada del cliente: app.zalaty.com/{slug} en web, o deep link
-// zalaty://{slug} en móvil. No requiere login (ver pantallas-flujos.md,
-// sección 1.1 "Acceso al negocio").
+// Punto de entrada del cliente: zalcita.com/?slug={slug} en web (query
+// param, no path — ver lib/config.ts). No requiere login (ver
+// pantallas-flujos.md, sección 1.1 "Acceso al negocio").
 //
 // TODO (siguientes iteraciones, en orden):
 //  1. Selección de servicio (esta pantalla) -> guardar service_id elegido
