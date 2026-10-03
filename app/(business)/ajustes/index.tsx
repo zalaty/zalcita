@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { supabase } from '@/lib/supabase';
 import { useIsPlatformAdmin } from '@/hooks/useIsPlatformAdmin';
 import { useTheme, useThemePreference, type ThemePreference } from '@/context/ThemeContext';
-import { Screen } from '@/components/ui';
+import { Button, Screen } from '@/components/ui';
 
 // TODO: añadir más secciones aquí conforme se construyan: Stripe — cada
 // una como su propia pantalla dentro de esta carpeta, enlazada desde
@@ -18,6 +20,19 @@ export default function AjustesMenu() {
   const router = useRouter();
   const { isAdmin } = useIsPlatformAdmin();
   const { preference, setPreference } = useThemePreference();
+
+  const [confirmingLogout, setConfirmingLogout] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+
+  async function handleSignOut() {
+    setSigningOut(true);
+    await supabase.auth.signOut();
+    // No basta con dejar que (business)/_layout.tsx reaccione a session=null
+    // (sí lo hace, redirige a /login) — se navega explícito a "/" para que
+    // el índice raíz decida de forma uniforme, mismo mecanismo que ya usan
+    // login.tsx/registro-negocio.tsx tras resolver sesión.
+    router.replace('/');
+  }
 
   // useTheme() solo puede llamarse dentro de un componente, así que esta
   // fila-chip (antes constante a nivel de módulo) pasa a calcularse aquí.
@@ -119,6 +134,50 @@ export default function AjustesMenu() {
               );
             })}
           </View>
+        </View>
+
+        {/* Sección separada al final, sin mezclarse con las demás filas de
+            navegación — cerrar sesión no es destructivo (se puede volver a
+            entrar sin más), así que va en variant="secondary" como el resto
+            de acciones reversibles de la app, no en danger (ese tono se
+            reserva para lo irreversible: cancelar, desactivar...). Pide
+            confirmación igualmente porque interrumpe el trabajo en curso. */}
+        <View
+          style={{
+            gap: theme.spacing.sm,
+            marginTop: theme.spacing.lg,
+            paddingTop: theme.spacing.lg,
+            borderTopWidth: 1,
+            borderColor: theme.colors.border,
+          }}
+        >
+          {confirmingLogout ? (
+            <View style={{ gap: theme.spacing.sm }}>
+              <Text style={{ ...theme.textStyles.small, color: theme.colors.textSecondary }}>
+                ¿Seguro que quieres cerrar sesión?
+              </Text>
+              <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+                <View style={{ flex: 1 }}>
+                  <Button
+                    label={signingOut ? '…' : 'Sí, cerrar sesión'}
+                    onPress={handleSignOut}
+                    disabled={signingOut}
+                    variant="secondary"
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Button
+                    label="No, mantener"
+                    onPress={() => setConfirmingLogout(false)}
+                    disabled={signingOut}
+                    variant="secondary"
+                  />
+                </View>
+              </View>
+            </View>
+          ) : (
+            <Button label="Cerrar sesión" onPress={() => setConfirmingLogout(true)} variant="secondary" />
+          )}
         </View>
       </ScrollView>
     </Screen>

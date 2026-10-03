@@ -136,6 +136,8 @@ export default function Login() {
                 onChangeText={setClientEmail}
                 autoCapitalize="none"
                 keyboardType="email-address"
+                returnKeyType="send"
+                onSubmitEditing={() => canSendOtp && sendOtp()}
               />
               <Button label={submitting ? 'Enviando…' : 'Enviar código'} onPress={sendOtp} disabled={!canSendOtp} />
             </>
@@ -146,7 +148,14 @@ export default function Login() {
               <Text style={{ ...theme.textStyles.body, color: theme.colors.textPrimary }}>
                 Te hemos enviado un código a {clientEmail}. Introdúcelo aquí.
               </Text>
-              <Input placeholder="Código de 6 dígitos" value={otp} onChangeText={setOtp} keyboardType="number-pad" />
+              <Input
+                placeholder="Código de 6 dígitos"
+                value={otp}
+                onChangeText={setOtp}
+                keyboardType="number-pad"
+                returnKeyType="done"
+                onSubmitEditing={() => canVerifyOtp && verifyOtp()}
+              />
               <Button
                 label={submitting ? 'Confirmando…' : 'Confirmar código'}
                 onPress={verifyOtp}
@@ -169,7 +178,14 @@ export default function Login() {
                 autoCapitalize="none"
                 keyboardType="email-address"
               />
-              <Input placeholder="Contraseña" value={password} onChangeText={setPassword} secureTextEntry />
+              <Input
+                placeholder="Contraseña"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                returnKeyType="go"
+                onSubmitEditing={() => canLoginBusiness && loginBusiness()}
+              />
               <Button label={submitting ? 'Entrando…' : 'Entrar'} onPress={loginBusiness} disabled={!canLoginBusiness} />
               <Pressable onPress={() => router.push('/(auth)/registro-negocio')}>
                 <Text style={{ ...theme.textStyles.small, color: theme.colors.primary, textAlign: 'center' }}>

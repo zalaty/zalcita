@@ -127,6 +127,8 @@ export default function RegistroNegocio() {
             value={code}
             onChangeText={setCode}
             keyboardType="number-pad"
+            returnKeyType="done"
+            onSubmitEditing={() => canSubmitCode && handleVerifyCode()}
           />
 
           <Button
@@ -175,7 +177,14 @@ export default function RegistroNegocio() {
           autoCapitalize="none"
           keyboardType="email-address"
         />
-        <Input placeholder="Contraseña" value={password} onChangeText={setPassword} secureTextEntry />
+        <Input
+          placeholder="Contraseña"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          returnKeyType="go"
+          onSubmitEditing={() => canSubmitForm && handleSubmit()}
+        />
 
         <Button
           label={submitting ? 'Creando cuenta…' : 'Crear negocio'}
