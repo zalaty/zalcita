@@ -399,6 +399,8 @@ export default function Confirmacion() {
                 onChangeText={setEmail}
                 autoCapitalize="none"
                 keyboardType="email-address"
+                returnKeyType="send"
+                onSubmitEditing={() => email.trim() !== '' && handleSendOtp()}
               />
               <Button label="Enviar código" onPress={handleSendOtp} disabled={email.trim() === ''} />
               {error && <Text style={{ ...theme.textStyles.body, color: theme.colors.danger }}>{error}</Text>}
@@ -408,7 +410,14 @@ export default function Confirmacion() {
               <Text style={{ ...theme.textStyles.body, color: theme.colors.textPrimary }}>
                 Te hemos enviado un código a {email}. Introdúcelo aquí.
               </Text>
-              <Input placeholder="Código de 6 dígitos" value={otp} onChangeText={setOtp} keyboardType="number-pad" />
+              <Input
+                placeholder="Código de 6 dígitos"
+                value={otp}
+                onChangeText={setOtp}
+                keyboardType="number-pad"
+                returnKeyType="done"
+                onSubmitEditing={() => otp.trim() !== '' && handleVerifyOtp()}
+              />
               <Button label="Confirmar código" onPress={handleVerifyOtp} disabled={otp.trim() === ''} />
               <Pressable onPress={handleSendOtp}>
                 <Text style={{ ...theme.textStyles.small, color: theme.colors.primary, textAlign: 'center' }}>
